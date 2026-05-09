@@ -36,6 +36,7 @@ The tests use Node's built-in test runner and a small mocked browser environment
 - Generated profile with primary type, secondary type, priorities, blockers, and stat bars
 - Quest board with reroll support
 - Side-quest board with travel needs, wants, daily clues, and serendipity prompts
+- Daily nudge TODO list with local browser notification opt-in plus ChatGPT Task and Telegram payload exports
 - Coach console with local, rule-based responses
 - Local storage persistence
 - Soul Capsule export/import for portable user-owned profile storage

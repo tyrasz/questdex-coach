@@ -3,6 +3,7 @@ const SOUL_CAPSULE_VERSION = 1;
 const ENCRYPTED_SOUL_VERSION = 1;
 const SOUL_ANCHOR_VERSION = 1;
 const SOUL_KDF_ITERATIONS = 150000;
+const NUDGE_CHECK_INTERVAL_MS = 60000;
 
 const priorityOptions = ["Career", "Study", "Health", "Social", "Money", "Creativity", "Startup", "Recovery"];
 const buildGoalOptions = [
@@ -26,11 +27,19 @@ const lifeStageOptions = [
   "Recovery and reset",
   "Explorer",
 ];
+const defaultNudgeConfig = {
+  enabled: false,
+  time: "09:00",
+  tone: "Warm and direct",
+  channel: "browser",
+  lastSentDate: "",
+};
 
 const state = {
   selectedPriorities: new Set(["Career", "Health"]),
   selectedBuildGoals: new Set(["Freedom", "Mastery"]),
   selectedTravelNeeds: new Set(["Food", "Culture", "Events"]),
+  nudgeConfig: { ...defaultNudgeConfig },
   uploadedSeed: "",
   profile: null,
   quests: [],
@@ -343,6 +352,15 @@ const githubRepoHighlights = document.querySelector("#githubRepoHighlights");
 const githubOAuthButton = document.querySelector("#githubOAuthButton");
 const githubOAuthStatus = document.querySelector("#githubOAuthStatus");
 const sourceSignalBoard = document.querySelector("#sourceSignalBoard");
+const nudgeTimeInput = document.querySelector("#nudgeTime");
+const nudgeToneSelect = document.querySelector("#nudgeTone");
+const nudgeChannelSelect = document.querySelector("#nudgeChannel");
+const refreshNudgeButton = document.querySelector("#refreshNudge");
+const enableBrowserNudgeButton = document.querySelector("#enableBrowserNudge");
+const copyChatGptTaskButton = document.querySelector("#copyChatGptTask");
+const copyTelegramNudgeButton = document.querySelector("#copyTelegramNudge");
+const nudgeStatus = document.querySelector("#nudgeStatus");
+const nudgePayloadPreview = document.querySelector("#nudgePayloadPreview");
 const loadDemoDataButton = document.querySelector("#loadDemoData");
 const generateQuestDexButton = document.querySelector("#generateQuestDex");
 const dashboard = document.querySelector("#dashboard");
@@ -374,6 +392,13 @@ function init() {
   applyChatGptSeedButton.addEventListener("click", applyChatGptSeed);
   analyzeGithubButton.addEventListener("click", analyzeGithubSource);
   githubOAuthButton.addEventListener("click", explainGithubOAuthPath);
+  refreshNudgeButton.addEventListener("click", refreshDailyNudge);
+  enableBrowserNudgeButton.addEventListener("click", enableBrowserNudge);
+  copyChatGptTaskButton.addEventListener("click", copyChatGptTaskPrompt);
+  copyTelegramNudgeButton.addEventListener("click", copyTelegramNudgePayload);
+  nudgeTimeInput.addEventListener("change", updateNudgeConfigFromControls);
+  nudgeToneSelect.addEventListener("change", updateNudgeConfigFromControls);
+  nudgeChannelSelect.addEventListener("change", updateNudgeConfigFromControls);
   loadDemoDataButton.addEventListener("click", loadDemoSeed);
   generateQuestDexButton.addEventListener("click", handleGenerateClick);
   form.addEventListener("submit", handleIntakeSubmit);
@@ -386,6 +411,8 @@ function init() {
   exportEncryptedSoulButton.addEventListener("click", exportEncryptedSoulCapsule);
   exportSoulAnchorButton.addEventListener("click", exportSoulAnchor);
   importEncryptedSoulFile.addEventListener("change", importEncryptedSoulCapsule);
+  hydrateNudgeControls();
+  startNudgeTimer();
 }
 
 function setupRangeOutputs() {
@@ -1455,6 +1482,207 @@ function coachToneWrap(tone, message) {
   return message;
 }
 
+function buildDailyNudge(profile, quests = [], sideQuests = [], config = {}, date = new Date()) {
+  const nudgeConfig = { ...defaultNudgeConfig, ...config };
+  const stats = profile.humanStats || profile.stats || {};
+  const weakStat = Object.entries(stats).sort((a, b) => a[1] - b[1])[0]?.[0] || "Focus";
+  const leadQuest = quests[0] || fallbackQuests[0];
+  const sideQuest = sideQuests[0] || fallbackSideQuests[0];
+  const recoveryMove =
+    Number(stats.Constitution || stats.Energy || 50) < 50
+      ? "Do one stabilizer before ambition: water, food, short walk, shower, or sleep plan."
+      : "Protect one clear recovery block so the build stays usable tomorrow.";
+  const proofMove = profile.priorities?.includes("Startup")
+    ? "Create one small public proof or ask one user a concrete question."
+    : `Spend one tiny rep on ${profile.priorities?.[0] || "your main quest"} and log what changed.`;
+  const todos = uniqueByTitle([
+    {
+      type: "Main",
+      title: leadQuest.title,
+      body: leadQuest.body,
+      reward: leadQuest.reward,
+    },
+    {
+      type: "Stabilize",
+      title: `${weakStat} floor`,
+      body: recoveryMove,
+      reward: "+2 Stability",
+    },
+    {
+      type: "Proof",
+      title: "One visible rep",
+      body: proofMove,
+      reward: "+3 Reputation",
+    },
+    {
+      type: "Side",
+      title: sideQuest.title,
+      body: sideQuest.body,
+      reward: sideQuest.reward,
+    },
+  ]).slice(0, 4);
+  const dateLabel = date.toLocaleDateString("en", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+
+  return {
+    date: toDateKey(date),
+    dateLabel,
+    time: nudgeConfig.time,
+    tone: nudgeConfig.tone,
+    title: `${profile.displayName}, today's QuestDex route`,
+    summary: buildNudgeSummary(profile, todos, nudgeConfig),
+    todos,
+    profileSummary: `${profile.archetypes?.join("-") || profile.primaryType} optimizing for ${(profile.buildGoals || []).join(", ")}`,
+  };
+}
+
+function buildNudgeSummary(profile, todos, config) {
+  const lead = todos[0]?.title || "Starter move";
+  if (config.tone === "Gentle and reflective") {
+    return `A small route is enough today: ${lead}, one stabilizer, then stop before the day becomes shapeless.`;
+  }
+  if (config.tone === "Tactical and concise") {
+    return `${lead}. Stabilize. Log one result. No heroic side missions until that is done.`;
+  }
+  if (config.tone === "Playful and game-like") {
+    return `Daily quest spawned for ${profile.archetypes?.[0] || profile.primaryType}: clear ${lead}, collect the reward, protect the save point.`;
+  }
+  return `Start with ${lead}. Keep the list short enough that it can actually survive contact with the day.`;
+}
+
+function buildNudgeChannelPayload(nudge, channel = "browser") {
+  const todoText = nudge.todos
+    .map((todo, index) => `${index + 1}. [${todo.type}] ${todo.title}: ${todo.body}`)
+    .join("\n");
+
+  if (channel === "chatgpt") {
+    return `Create a recurring daily ChatGPT Task at ${nudge.time} called "QuestDex daily route". Send me this kind of nudge each day:\n\n${nudge.title}\n${nudge.summary}\n\nProfile: ${nudge.profileSummary}\nToday's TODO:\n${todoText}\n\nKeep it warm, concise, and a little persistent without guilt.`;
+  }
+
+  if (channel === "telegram") {
+    return `${nudge.title}\n${nudge.summary}\n\n${todoText}\n\nReply done, stuck, or reroll.`;
+  }
+
+  return `${nudge.title}: ${nudge.summary}`;
+}
+
+function refreshDailyNudge() {
+  updateNudgeConfigFromControls();
+  renderDailyNudge();
+  setNudgeStatus("Daily TODO refreshed from the current profile and quest board.");
+}
+
+async function enableBrowserNudge() {
+  updateNudgeConfigFromControls(false);
+
+  if (typeof Notification === "undefined") {
+    setNudgeStatus("This browser does not support local notifications. Use ChatGPT Task or Telegram payload instead.", true);
+    return;
+  }
+
+  const permission =
+    Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+
+  if (permission !== "granted") {
+    setNudgeStatus("Browser notifications were not enabled. No worries; copy the ChatGPT Task or Telegram payload instead.", true);
+    return;
+  }
+
+  state.nudgeConfig.enabled = true;
+  state.nudgeConfig.channel = "browser";
+  persistProfile();
+  hydrateNudgeControls();
+  renderDailyNudge();
+}
+
+async function copyChatGptTaskPrompt() {
+  updateNudgeConfigFromControls(false);
+  state.nudgeConfig.channel = "chatgpt";
+  hydrateNudgeControls();
+  const nudge = buildDailyNudge(state.profile, state.quests, state.sideQuests, state.nudgeConfig);
+  await copyNudgePayload(buildNudgeChannelPayload(nudge, "chatgpt"), "ChatGPT Task prompt copied.");
+}
+
+async function copyTelegramNudgePayload() {
+  updateNudgeConfigFromControls(false);
+  state.nudgeConfig.channel = "telegram";
+  hydrateNudgeControls();
+  const nudge = buildDailyNudge(state.profile, state.quests, state.sideQuests, state.nudgeConfig);
+  await copyNudgePayload(buildNudgeChannelPayload(nudge, "telegram"), "Telegram nudge payload copied.");
+}
+
+async function copyNudgePayload(payload, successMessage) {
+  nudgePayloadPreview.hidden = false;
+  nudgePayloadPreview.textContent = payload;
+
+  try {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      throw new Error("Clipboard is not available in this browser.");
+    }
+    await navigator.clipboard.writeText(payload);
+    setNudgeStatus(successMessage);
+  } catch (error) {
+    setNudgeStatus("Payload preview is ready. Copy it from the box below.", true);
+  }
+}
+
+function updateNudgeConfigFromControls(shouldPersist = true) {
+  state.nudgeConfig = {
+    ...state.nudgeConfig,
+    time: normalizeNudgeTime(nudgeTimeInput.value),
+    tone: nudgeToneSelect.value || defaultNudgeConfig.tone,
+    channel: nudgeChannelSelect.value || defaultNudgeConfig.channel,
+  };
+
+  if (shouldPersist) {
+    persistProfile();
+    renderDailyNudge();
+  }
+}
+
+function hydrateNudgeControls() {
+  const config = { ...defaultNudgeConfig, ...state.nudgeConfig };
+  nudgeTimeInput.value = normalizeNudgeTime(config.time);
+  nudgeToneSelect.value = config.tone;
+  nudgeChannelSelect.value = config.channel;
+}
+
+function startNudgeTimer() {
+  if (typeof window === "undefined" || !window.setInterval) return;
+  window.setInterval(checkDailyNudgeDue, NUDGE_CHECK_INTERVAL_MS);
+}
+
+function checkDailyNudgeDue(now = new Date()) {
+  if (!state.profile || !state.nudgeConfig.enabled || state.nudgeConfig.channel !== "browser") return false;
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return false;
+  if (!isNudgeDue(now, state.nudgeConfig)) return false;
+
+  const nudge = buildDailyNudge(state.profile, state.quests, state.sideQuests, state.nudgeConfig, now);
+  new Notification("QuestDex daily route", {
+    body: buildNudgeChannelPayload(nudge, "browser"),
+    tag: `questdex-${nudge.date}`,
+  });
+  state.nudgeConfig.lastSentDate = nudge.date;
+  persistProfile();
+  renderDailyNudge();
+  return true;
+}
+
+function isNudgeDue(now, config) {
+  const dateKey = toDateKey(now);
+  if (config.lastSentDate === dateKey) return false;
+  return minutesSinceMidnight(now) >= timeToMinutes(normalizeNudgeTime(config.time));
+}
+
+function setNudgeStatus(message, isError = false) {
+  if (!nudgeStatus) return;
+  nudgeStatus.textContent = message;
+  nudgeStatus.classList.toggle("is-error", isError);
+}
+
 function rerollQuests() {
   if (!state.profile) return;
   state.quests = buildQuests(state.profile);
@@ -1501,6 +1729,7 @@ function buildSoulCapsule(exportedAt = new Date().toISOString()) {
     priorities: Array.from(state.selectedPriorities),
     buildGoals: Array.from(state.selectedBuildGoals),
     travelNeeds: Array.from(state.selectedTravelNeeds),
+    nudgeConfig: state.nudgeConfig,
   };
 }
 
@@ -1633,6 +1862,8 @@ function applySoulCapsule(capsule) {
   state.selectedTravelNeeds = new Set(
     capsule.travelNeeds || state.profile.travelContext?.needs || ["Food", "Culture", "Events"],
   );
+  state.nudgeConfig = { ...defaultNudgeConfig, ...(capsule.nudgeConfig || {}) };
+  hydrateNudgeControls();
 
   persistProfile();
   renderDashboard();
@@ -1752,6 +1983,7 @@ function renderDashboard() {
   renderProgression(profile.skillTree, profile.evolutionPath);
   renderLoadout(profile.party, profile.inventory);
   renderInsights(profile.insights);
+  renderDailyNudge();
   renderCoachFeed();
 }
 
@@ -1920,6 +2152,33 @@ function renderSideQuests(sideQuests, travelContext = {}) {
     .join("");
 }
 
+function renderDailyNudge() {
+  if (!state.profile) return;
+
+  const nudge = buildDailyNudge(state.profile, state.quests, state.sideQuests, state.nudgeConfig);
+  document.querySelector("#dailyTodoList").innerHTML = nudge.todos
+    .map(
+      (todo) => `
+        <li>
+          <span class="todo-type">${escapeHtml(todo.type)}</span>
+          <strong>${escapeHtml(todo.title)}</strong>
+          <p>${escapeHtml(todo.body)}</p>
+        </li>
+      `,
+    )
+    .join("");
+
+  if (nudgePayloadPreview && !nudgePayloadPreview.hidden) {
+    nudgePayloadPreview.textContent = buildNudgeChannelPayload(nudge, state.nudgeConfig.channel);
+  }
+
+  setNudgeStatus(
+    state.nudgeConfig.enabled
+      ? `Browser nudge armed for ${state.nudgeConfig.time}. Keep QuestDex open for local notifications.`
+      : "Daily route ready. Browser nudges are opt-in; ChatGPT or Telegram is better for reliable off-app delivery.",
+  );
+}
+
 function renderInsights(insights) {
   document.querySelector("#insightsList").innerHTML = insights
     .map((insight) => `<li>${escapeHtml(insight)}</li>`)
@@ -1985,6 +2244,7 @@ function persistProfile() {
       priorities: Array.from(state.selectedPriorities),
       buildGoals: Array.from(state.selectedBuildGoals),
       travelNeeds: Array.from(state.selectedTravelNeeds),
+      nudgeConfig: state.nudgeConfig,
     }),
   );
 }
@@ -2002,6 +2262,8 @@ function restoreSavedProfile() {
     state.selectedPriorities = new Set(parsed.priorities || ["Career", "Health"]);
     state.selectedBuildGoals = new Set(parsed.buildGoals || state.profile?.buildGoals || ["Freedom", "Mastery"]);
     state.selectedTravelNeeds = new Set(parsed.travelNeeds || ["Food", "Culture", "Events"]);
+    state.nudgeConfig = { ...defaultNudgeConfig, ...(parsed.nudgeConfig || {}) };
+    hydrateNudgeControls();
 
     if (state.profile) {
       ensureRpgProfileFields(state.profile);
@@ -2043,6 +2305,28 @@ function updateNav(activeId) {
 
 function countWords(text) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
+}
+
+function toDateKey(date) {
+  const value = new Date(date);
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeNudgeTime(value) {
+  return /^\d{2}:\d{2}$/.test(String(value || "")) ? value : defaultNudgeConfig.time;
+}
+
+function timeToMinutes(time) {
+  const [hours, minutes] = normalizeNudgeTime(time).split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function minutesSinceMidnight(date) {
+  const value = new Date(date);
+  return value.getHours() * 60 + value.getMinutes();
 }
 
 function formatTravelLens(travelContext = {}) {

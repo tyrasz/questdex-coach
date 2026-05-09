@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QuestDex Coach</title>
-    <link rel="stylesheet" href="./styles.css?v=data-sources" />
+    <link rel="stylesheet" href="./styles.css?v=daily-nudge" />
   </head>
   <body>
     <div class="app-shell">
@@ -524,6 +524,54 @@
               <div id="sideQuestList" class="sidequest-list"></div>
             </section>
 
+            <section class="panel nudge-panel" aria-labelledby="nudgeTitle">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Daily nudge</p>
+                  <h3 id="nudgeTitle">Good nag TODO</h3>
+                </div>
+                <span class="privacy-pill">Opt-in</span>
+              </div>
+              <div class="nudge-controls">
+                <label>
+                  Nudge time
+                  <input id="nudgeTime" type="time" value="09:00" />
+                </label>
+                <label>
+                  Tone
+                  <select id="nudgeTone">
+                    <option value="Warm and direct">Warm and direct</option>
+                    <option value="Gentle and reflective">Gentle and reflective</option>
+                    <option value="Tactical and concise">Tactical and concise</option>
+                    <option value="Playful and game-like">Playful and game-like</option>
+                  </select>
+                </label>
+                <label>
+                  Channel
+                  <select id="nudgeChannel">
+                    <option value="browser">Browser while open</option>
+                    <option value="chatgpt">ChatGPT Task prompt</option>
+                    <option value="telegram">Telegram bot payload</option>
+                  </select>
+                </label>
+              </div>
+              <ol id="dailyTodoList" class="daily-todo-list"></ol>
+              <div class="nudge-actions">
+                <button class="secondary-button compact-button" id="refreshNudge" type="button">Refresh TODO</button>
+                <button class="secondary-button compact-button" id="enableBrowserNudge" type="button">
+                  Enable browser nudge
+                </button>
+                <button class="secondary-button compact-button" id="copyChatGptTask" type="button">
+                  Copy ChatGPT Task
+                </button>
+                <button class="secondary-button compact-button" id="copyTelegramNudge" type="button">
+                  Copy Telegram payload
+                </button>
+              </div>
+              <p id="nudgeStatus" class="nudge-status" aria-live="polite"></p>
+              <pre id="nudgePayloadPreview" class="nudge-payload-preview" hidden></pre>
+            </section>
+
             <section class="panel evolution-panel" aria-labelledby="evolutionTitle">
               <p class="eyebrow">Progression</p>
               <h3 id="evolutionTitle">Skill tree and evolution path</h3>
@@ -641,6 +689,6 @@
       </main>
     </div>
 
-    <script src="./app.js?v=data-sources"></script>
+    <script src="./app.js?v=daily-nudge"></script>
   </body>
 </html>

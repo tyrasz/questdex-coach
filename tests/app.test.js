@@ -313,6 +313,45 @@ test("buildSideQuests turns travel wants and events into side quests", () => {
   assert.match(bodyText, /Seoul, South Korea/);
 });
 
+test("daily nudge builds a short useful TODO route", () => {
+  const app = loadAppContext();
+  const profile = app.buildProfile(
+    baseSurvey({
+      energy: "32",
+      consistency: "35",
+    }),
+    "demo deadline and tired after travel",
+  );
+  const quests = app.buildQuests(profile);
+  const sideQuests = app.buildSideQuests(profile);
+  const nudge = app.buildDailyNudge(profile, quests, sideQuests, {
+    time: "08:30",
+    tone: "Tactical and concise",
+  }, new Date("2026-05-09T08:00:00"));
+
+  assert.equal(nudge.time, "08:30");
+  assert.equal(nudge.todos.length, 4);
+  assert.equal(nudge.todos[0].type, "Main");
+  assert.ok(nudge.todos.some((todo) => todo.type === "Stabilize"));
+  assert.ok(nudge.summary.includes("Stabilize"));
+});
+
+test("daily nudge payloads support ChatGPT Tasks and Telegram", () => {
+  const app = loadAppContext();
+  const profile = app.buildProfile(baseSurvey(), "");
+  const nudge = app.buildDailyNudge(profile, app.buildQuests(profile), app.buildSideQuests(profile), {
+    time: "09:15",
+    tone: "Warm and direct",
+  });
+  const chatGptPayload = app.buildNudgeChannelPayload(nudge, "chatgpt");
+  const telegramPayload = app.buildNudgeChannelPayload(nudge, "telegram");
+
+  assert.match(chatGptPayload, /recurring daily ChatGPT Task at 09:15/);
+  assert.match(chatGptPayload, /QuestDex daily route/);
+  assert.match(telegramPayload, /Reply done, stuck, or reroll/);
+  assert.match(telegramPayload, /1\. \[/);
+});
+
 test("coach reply recognizes travel and side-quest prompts", () => {
   const app = loadAppContext();
   const profile = app.buildProfile(baseSurvey(), "");

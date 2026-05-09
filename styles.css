@@ -1029,6 +1029,96 @@ textarea::placeholder {
   grid-column: 1 / -1;
 }
 
+.nudge-panel {
+  grid-column: 1 / -1;
+}
+
+.nudge-controls {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.5fr) minmax(200px, 0.8fr) minmax(220px, 0.8fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.daily-todo-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.daily-todo-list li {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(0, 140, 118, 0.06), transparent 48%),
+    #fbfcff;
+}
+
+.todo-type {
+  display: inline-flex;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(0, 140, 118, 0.1);
+  color: var(--teal);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.daily-todo-list strong {
+  display: block;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.daily-todo-list p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.42;
+}
+
+.nudge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.nudge-status {
+  min-height: 20px;
+  margin: 12px 0 0;
+  color: var(--teal);
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.nudge-status.is-error {
+  color: var(--coral);
+}
+
+.nudge-payload-preview {
+  max-height: 220px;
+  overflow: auto;
+  margin: 12px 0 0;
+  padding: 12px;
+  border: 1px solid rgba(36, 87, 214, 0.18);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .travel-context-line {
   margin: -4px 0 16px;
   color: var(--muted);
@@ -1260,6 +1350,7 @@ textarea::placeholder {
   .seed-grid,
   .source-lanes,
   .source-signal-grid,
+  .nudge-controls,
   .rpg-grid,
   .rpg-grid.two-column,
   .travel-grid,
@@ -1268,6 +1359,10 @@ textarea::placeholder {
   }
 
   .sidequest-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .daily-todo-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1353,6 +1448,10 @@ textarea::placeholder {
   }
 
   .sidequest-list {
+    grid-template-columns: 1fr;
+  }
+
+  .daily-todo-list {
     grid-template-columns: 1fr;
   }
 
