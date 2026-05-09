@@ -342,6 +342,46 @@
                   <input id="importSoulFile" type="file" accept=".json,application/json" />
                 </label>
               </div>
+              <div class="soul-anchor-box">
+                <p class="eyebrow">Soul Anchor</p>
+                <p class="soul-copy">
+                  Encrypt the capsule locally, then export a blockchain-ready anchor record with only hashes and metadata.
+                </p>
+                <div class="soul-secure-grid">
+                  <label>
+                    Passphrase
+                    <input
+                      id="soulPassphrase"
+                      type="password"
+                      minlength="8"
+                      placeholder="At least 8 characters"
+                      autocomplete="new-password"
+                    />
+                  </label>
+                  <label>
+                    Recovery hint
+                    <input
+                      id="soulRecoveryHint"
+                      type="text"
+                      placeholder="Optional hint, never the passphrase"
+                      autocomplete="off"
+                    />
+                  </label>
+                </div>
+                <div class="soul-actions">
+                  <button class="secondary-button compact-button" id="exportEncryptedSoul" type="button">
+                    Export encrypted
+                  </button>
+                  <button class="secondary-button compact-button" id="exportSoulAnchor" type="button">
+                    Export anchor
+                  </button>
+                  <label class="secondary-button compact-button import-soul-button">
+                    Import encrypted
+                    <input id="importEncryptedSoulFile" type="file" accept=".json,application/json" />
+                  </label>
+                </div>
+                <pre id="soulAnchorPreview" class="anchor-preview" hidden></pre>
+              </div>
               <p id="soulStatus" class="soul-status" aria-live="polite"></p>
             </section>
 

@@ -1,5 +1,8 @@
 const STORAGE_KEY = "questdex-profile";
 const SOUL_CAPSULE_VERSION = 1;
+const ENCRYPTED_SOUL_VERSION = 1;
+const SOUL_ANCHOR_VERSION = 1;
+const SOUL_KDF_ITERATIONS = 150000;
 
 const state = {
   selectedPriorities: new Set(["Career", "Health"]),
@@ -246,6 +249,12 @@ const rerollQuestsButton = document.querySelector("#rerollQuests");
 const rerollSideQuestsButton = document.querySelector("#rerollSideQuests");
 const exportSoulButton = document.querySelector("#exportSoul");
 const importSoulFile = document.querySelector("#importSoulFile");
+const soulPassphrase = document.querySelector("#soulPassphrase");
+const soulRecoveryHint = document.querySelector("#soulRecoveryHint");
+const exportEncryptedSoulButton = document.querySelector("#exportEncryptedSoul");
+const exportSoulAnchorButton = document.querySelector("#exportSoulAnchor");
+const importEncryptedSoulFile = document.querySelector("#importEncryptedSoulFile");
+const soulAnchorPreview = document.querySelector("#soulAnchorPreview");
 const soulStatus = document.querySelector("#soulStatus");
 
 init();
@@ -265,6 +274,9 @@ function init() {
   rerollSideQuestsButton.addEventListener("click", rerollSideQuests);
   exportSoulButton.addEventListener("click", exportSoulCapsule);
   importSoulFile.addEventListener("change", importSoulCapsule);
+  exportEncryptedSoulButton.addEventListener("click", exportEncryptedSoulCapsule);
+  exportSoulAnchorButton.addEventListener("click", exportSoulAnchor);
+  importEncryptedSoulFile.addEventListener("change", importEncryptedSoulCapsule);
 }
 
 function setupRangeOutputs() {
@@ -770,6 +782,20 @@ function buildSoulCapsule(exportedAt = new Date().toISOString()) {
   };
 }
 
+function validateEncryptedSoulCapsule(encryptedCapsule) {
+  if (!encryptedCapsule || typeof encryptedCapsule !== "object") {
+    throw new Error("Encrypted capsule must be a JSON object.");
+  }
+  if (encryptedCapsule.app !== "QuestDex Coach" || encryptedCapsule.type !== "EncryptedSoulCapsule") {
+    throw new Error("File is not a QuestDex encrypted Soul Capsule.");
+  }
+  if (!encryptedCapsule.ciphertext || !encryptedCapsule.iv || !encryptedCapsule.kdf?.salt) {
+    throw new Error("Encrypted capsule is missing required crypto fields.");
+  }
+
+  return true;
+}
+
 function validateSoulCapsule(capsule) {
   if (!capsule || typeof capsule !== "object") {
     throw new Error("Capsule must be a JSON object.");
@@ -785,6 +811,90 @@ function validateSoulCapsule(capsule) {
   }
 
   return true;
+}
+
+async function encryptSoulCapsule(capsule, passphrase, options = {}) {
+  validateSoulCapsule(capsule);
+  assertUsablePassphrase(passphrase);
+
+  const createdAt = options.createdAt || new Date().toISOString();
+  const salt = options.saltBase64 ? base64ToBytes(options.saltBase64) : randomBytes(16);
+  const iv = options.ivBase64 ? base64ToBytes(options.ivBase64) : randomBytes(12);
+  const key = await deriveSoulKey(passphrase, salt);
+  const serialized = canonicalStringify(capsule);
+  const ciphertextBuffer = await globalThis.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    new TextEncoder().encode(serialized),
+  );
+  const ciphertext = bytesToBase64(new Uint8Array(ciphertextBuffer));
+  const saltBase64 = bytesToBase64(salt);
+  const ivBase64 = bytesToBase64(iv);
+  const ciphertextSha256 = await sha256Hex(ciphertext);
+  const commitment = await sha256Hex(`${saltBase64}.${ivBase64}.${ciphertextSha256}`);
+
+  return {
+    schemaVersion: ENCRYPTED_SOUL_VERSION,
+    app: "QuestDex Coach",
+    type: "EncryptedSoulCapsule",
+    createdAt,
+    algorithm: "AES-GCM",
+    kdf: {
+      name: "PBKDF2",
+      hash: "SHA-256",
+      iterations: SOUL_KDF_ITERATIONS,
+      salt: saltBase64,
+    },
+    iv: ivBase64,
+    ciphertext,
+    ciphertextSha256,
+    commitment,
+    recoveryHint: options.recoveryHint || "",
+  };
+}
+
+async function decryptSoulCapsule(encryptedCapsule, passphrase) {
+  validateEncryptedSoulCapsule(encryptedCapsule);
+  assertUsablePassphrase(passphrase);
+
+  const salt = base64ToBytes(encryptedCapsule.kdf.salt);
+  const iv = base64ToBytes(encryptedCapsule.iv);
+  const key = await deriveSoulKey(passphrase, salt);
+  const plaintextBuffer = await globalThis.crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    base64ToBytes(encryptedCapsule.ciphertext),
+  );
+  const capsule = JSON.parse(new TextDecoder().decode(plaintextBuffer));
+
+  validateSoulCapsule(capsule);
+  return capsule;
+}
+
+async function buildSoulAnchorRecord(encryptedCapsule, options = {}) {
+  validateEncryptedSoulCapsule(encryptedCapsule);
+
+  const storagePointer = options.storagePointer || "user-held encrypted capsule";
+  const createdAt = options.createdAt || new Date().toISOString();
+  const anchorPayload = {
+    commitment: encryptedCapsule.commitment,
+    ciphertextSha256: encryptedCapsule.ciphertextSha256,
+    storagePointer,
+    schemaVersion: encryptedCapsule.schemaVersion,
+  };
+
+  return {
+    schemaVersion: SOUL_ANCHOR_VERSION,
+    app: "QuestDex Coach",
+    type: "SoulAnchor",
+    network: options.network || "mock-chain",
+    createdAt,
+    storagePointer,
+    encryptedCapsuleSha256: encryptedCapsule.ciphertextSha256,
+    commitment: encryptedCapsule.commitment,
+    anchorHash: await sha256Hex(canonicalStringify(anchorPayload)),
+    note: "Safe to publish: contains no raw Soul data and no decryption key.",
+  };
 }
 
 function applySoulCapsule(capsule) {
@@ -815,21 +925,10 @@ function exportSoulCapsule() {
   }
 
   const capsule = buildSoulCapsule();
-  const serialized = JSON.stringify(capsule, null, 2);
   const filename = `questdex-soul-${slugify(state.profile.displayName)}.json`;
-
-  if (typeof Blob === "undefined" || !document.createElement || typeof URL === "undefined") {
-    setSoulStatus("Soul Capsule prepared.");
-    return serialized;
-  }
-
-  const blob = new Blob([serialized], { type: "application/json" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(link.href);
+  const serialized = downloadJson(capsule, filename);
   setSoulStatus(`Exported ${filename}.`);
+  return serialized;
 }
 
 function importSoulCapsule(event) {
@@ -848,6 +947,67 @@ function importSoulCapsule(event) {
     }
   };
   reader.readAsText(file);
+}
+
+async function exportEncryptedSoulCapsule() {
+  try {
+    const encryptedCapsule = await createEncryptedSoulArtifact();
+    const filename = `questdex-soul-encrypted-${slugify(state.profile.displayName)}.json`;
+    const serialized = downloadJson(encryptedCapsule, filename);
+    setSoulStatus(`Exported encrypted capsule ${filename}. Keep the passphrase separate.`);
+    return serialized;
+  } catch (error) {
+    setSoulStatus(error.message || "Unable to export encrypted Soul Capsule.", true);
+    return null;
+  }
+}
+
+async function exportSoulAnchor() {
+  try {
+    const encryptedCapsule = await createEncryptedSoulArtifact();
+    const anchor = await buildSoulAnchorRecord(encryptedCapsule);
+    const filename = `questdex-soul-anchor-${slugify(state.profile.displayName)}.json`;
+    const serialized = downloadJson(anchor, filename);
+
+    renderSoulAnchorPreview(anchor);
+    setSoulStatus(`Exported anchor ${filename}. Store the encrypted capsule separately.`);
+    return serialized;
+  } catch (error) {
+    setSoulStatus(error.message || "Unable to export Soul Anchor.", true);
+    return null;
+  }
+}
+
+async function importEncryptedSoulCapsule(event) {
+  const [file] = event.target.files;
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const capsule = await decryptSoulCapsule(
+        JSON.parse(String(reader.result || "")),
+        readSoulPassphrase(),
+      );
+      applySoulCapsule(capsule);
+      setSoulStatus(`Imported encrypted capsule ${file.name}.`);
+    } catch (error) {
+      setSoulStatus(error.message || "Unable to import encrypted Soul Capsule.", true);
+    } finally {
+      event.target.value = "";
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function createEncryptedSoulArtifact() {
+  if (!state.profile) {
+    throw new Error("Generate a QuestDex profile before creating an encrypted capsule.");
+  }
+
+  return encryptSoulCapsule(buildSoulCapsule(), readSoulPassphrase(), {
+    recoveryHint: soulRecoveryHint?.value.trim() || "",
+  });
 }
 
 function renderDashboard() {
@@ -965,6 +1125,40 @@ function setSoulStatus(message, isError = false) {
   soulStatus.classList.toggle("is-error", isError);
 }
 
+function renderSoulAnchorPreview(anchor) {
+  if (!soulAnchorPreview) return;
+  soulAnchorPreview.hidden = false;
+  soulAnchorPreview.textContent = JSON.stringify(anchor, null, 2);
+}
+
+function readSoulPassphrase() {
+  const passphrase = soulPassphrase?.value || "";
+  assertUsablePassphrase(passphrase);
+  return passphrase;
+}
+
+function assertUsablePassphrase(passphrase) {
+  if (!passphrase || passphrase.length < 8) {
+    throw new Error("Use a passphrase with at least 8 characters.");
+  }
+}
+
+function downloadJson(payload, filename) {
+  const serialized = JSON.stringify(payload, null, 2);
+
+  if (typeof Blob === "undefined" || !document.createElement || typeof URL === "undefined") {
+    return serialized;
+  }
+
+  const blob = new Blob([serialized], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  return serialized;
+}
+
 function persistProfile() {
   localStorage.setItem(
     STORAGE_KEY,
@@ -1032,6 +1226,88 @@ function formatTravelLens(travelContext = {}) {
   const destination = travelContext.destination || "New country mode";
   const needs = travelContext.needs?.length ? travelContext.needs.slice(0, 3).join(", ") : "general discovery";
   return `${destination}: ${needs}`;
+}
+
+async function deriveSoulKey(passphrase, salt) {
+  if (!globalThis.crypto?.subtle) {
+    throw new Error("This browser does not support Web Crypto.");
+  }
+
+  const baseKey = await globalThis.crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(passphrase),
+    "PBKDF2",
+    false,
+    ["deriveKey"],
+  );
+
+  return globalThis.crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt,
+      iterations: SOUL_KDF_ITERATIONS,
+      hash: "SHA-256",
+    },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+async function sha256Hex(text) {
+  if (!globalThis.crypto?.subtle) {
+    throw new Error("This browser does not support Web Crypto.");
+  }
+
+  const hash = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return bytesToHex(new Uint8Array(hash));
+}
+
+function randomBytes(length) {
+  if (!globalThis.crypto?.getRandomValues) {
+    throw new Error("This browser does not support secure random values.");
+  }
+
+  const bytes = new Uint8Array(length);
+  globalThis.crypto.getRandomValues(bytes);
+  return bytes;
+}
+
+function canonicalStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => canonicalStringify(item)).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalStringify(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function bytesToHex(bytes) {
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+function base64ToBytes(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
 }
 
 function shorten(text, maxLength) {

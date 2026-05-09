@@ -37,6 +37,7 @@ The tests use Node's built-in test runner and a small mocked browser environment
 - Coach console with local, rule-based responses
 - Local storage persistence
 - Soul Capsule export/import for portable user-owned profile storage
+- Encrypted Soul Capsule and Soul Anchor exports for blockchain-ready recovery without putting raw data on-chain
 
 ## Next Build Ideas
 

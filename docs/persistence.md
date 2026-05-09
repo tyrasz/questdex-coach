@@ -7,6 +7,8 @@ QuestDex treats the user's evolving profile as a "Soul": a consent-based memory 
 - Browser `localStorage` keeps the generated profile on the same device and browser.
 - Soul Capsule export/import lets the user carry their data between browsers, devices, or future versions of the app.
 - The capsule is a plain JSON file owned by the user. It is not uploaded anywhere in the static MVP.
+- Encrypted Soul Capsule export uses local AES-GCM encryption with a user passphrase.
+- Soul Anchor export creates a blockchain-ready JSON record with hashes and metadata only.
 
 ## Soul Capsule Shape
 
@@ -57,6 +59,35 @@ The coach should load memory in this order:
 5. Optional travel context, such as destination, weather, events, saved constraints, and curiosity preferences
 
 This keeps the coach from drowning in old data while still feeling continuous.
+
+## Blockchain Anchor Path
+
+A blockchain should be used as an anchor, not as Soul storage.
+
+The safer pattern is:
+
+1. Build the Soul Capsule JSON locally.
+2. Encrypt it locally with a user-held passphrase or recovery key.
+3. Store the encrypted capsule somewhere resilient, such as IPFS, Filecoin, Arweave, a trusted NGO vault, or multiple user-chosen mirrors.
+4. Put only the Soul Anchor record on-chain.
+
+The Soul Anchor can contain:
+
+- encrypted capsule hash
+- commitment hash
+- schema version
+- timestamp
+- storage pointer or content ID
+- recovery policy ID
+
+The Soul Anchor must not contain:
+
+- raw profile data
+- raw memories
+- plaintext locations, health notes, relationships, or immigration details
+- passphrases or recovery shares
+
+For displaced users, the important product promise is continuity without forced trust in one phone, one company, or one cloud account. The hard problem is recovery: if the user loses the decryption key, the encrypted capsule is unrecoverable. A later version should support social recovery or Shamir secret sharing so trusted people or organizations can help reconstruct access without any single party holding the whole key.
 
 ## Suggested Next Implementation
 

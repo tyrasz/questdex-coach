@@ -3,6 +3,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
+const { TextDecoder, TextEncoder } = require("node:util");
+const { webcrypto } = require("node:crypto");
 
 function createFakeElement() {
   const element = {
@@ -33,7 +35,14 @@ function createFakeElement() {
 function loadAppContext() {
   const fakeElement = createFakeElement();
   const context = {
+    atob(value) {
+      return Buffer.from(value, "base64").toString("binary");
+    },
+    btoa(value) {
+      return Buffer.from(value, "binary").toString("base64");
+    },
     console,
+    crypto: webcrypto,
     FileReader: function FileReader() {},
     localStorage: {
       getItem() {
@@ -42,6 +51,8 @@ function loadAppContext() {
       removeItem() {},
       setItem() {},
     },
+    TextDecoder,
+    TextEncoder,
     window: {
       scrollTo() {},
     },
@@ -179,6 +190,66 @@ test("Soul Capsule validation rejects unrelated JSON", () => {
     () => app.validateSoulCapsule({ app: "Other App", profile: {} }),
     /not created by QuestDex Coach/,
   );
+});
+
+test("encrypted Soul Capsule can decrypt while anchor omits raw Soul data", async () => {
+  const app = loadAppContext();
+  const profile = app.buildProfile(baseSurvey(), "");
+  const capsule = {
+    schemaVersion: 1,
+    app: "QuestDex Coach",
+    exportedAt: "2026-05-09T00:00:00.000Z",
+    profile,
+    quests: app.buildQuests(profile),
+    sideQuests: app.buildSideQuests(profile),
+    chat: [{ role: "coach", content: "Carry this safely." }],
+    priorities: ["Career", "Health"],
+    travelNeeds: ["Food", "Culture", "Events"],
+  };
+  const encrypted = await app.encryptSoulCapsule(capsule, "correct horse battery staple", {
+    createdAt: "2026-05-09T00:00:00.000Z",
+    recoveryHint: "four words",
+    saltBase64: Buffer.from("questdex-test-salt").toString("base64"),
+    ivBase64: Buffer.from("test-iv-12345").subarray(0, 12).toString("base64"),
+  });
+  const decrypted = await app.decryptSoulCapsule(encrypted, "correct horse battery staple");
+  const anchor = await app.buildSoulAnchorRecord(encrypted, {
+    createdAt: "2026-05-09T00:00:00.000Z",
+    storagePointer: "ipfs://encrypted-capsule-placeholder",
+  });
+  const anchorText = JSON.stringify(anchor);
+  const encryptedText = JSON.stringify(encrypted);
+
+  assert.equal(decrypted.profile.displayName, "Mira");
+  assert.equal(decrypted.profile.travelContext.destination, "Seoul, South Korea");
+  assert.equal(encrypted.type, "EncryptedSoulCapsule");
+  assert.equal(anchor.type, "SoulAnchor");
+  assert.equal(anchor.network, "mock-chain");
+  assert.match(anchor.anchorHash, /^[a-f0-9]{64}$/);
+  assert.doesNotMatch(anchorText, /Mira|Seoul|Carry this safely/);
+  assert.doesNotMatch(encryptedText, /Mira|Seoul|Carry this safely/);
+});
+
+test("encrypted Soul Capsule rejects the wrong passphrase", async () => {
+  const app = loadAppContext();
+  const profile = app.buildProfile(baseSurvey(), "");
+  const capsule = {
+    schemaVersion: 1,
+    app: "QuestDex Coach",
+    exportedAt: "2026-05-09T00:00:00.000Z",
+    profile,
+    quests: app.buildQuests(profile),
+    sideQuests: app.buildSideQuests(profile),
+    chat: [],
+    priorities: ["Career", "Health"],
+    travelNeeds: ["Food", "Culture", "Events"],
+  };
+  const encrypted = await app.encryptSoulCapsule(capsule, "correct horse battery staple", {
+    saltBase64: Buffer.from("questdex-test-salt").toString("base64"),
+    ivBase64: Buffer.from("test-iv-12345").subarray(0, 12).toString("base64"),
+  });
+
+  await assert.rejects(() => app.decryptSoulCapsule(encrypted, "wrong passphrase"));
 });
 
 test("summarizeSeed detects event, energy, user, and consistency signals", () => {
