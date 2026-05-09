@@ -6,6 +6,7 @@ const SOUL_KDF_ITERATIONS = 150000;
 
 const state = {
   selectedPriorities: new Set(["Career", "Health"]),
+  selectedBuildGoals: new Set(["Freedom", "Mastery"]),
   selectedTravelNeeds: new Set(["Food", "Culture", "Events"]),
   uploadedSeed: "",
   profile: null,
@@ -21,6 +22,15 @@ const statColors = {
   Consistency: "#b58105",
   Creativity: "#6f4bc1",
   Social: "#0f766e",
+  Strength: "#008c76",
+  Intelligence: "#2457d6",
+  Charisma: "#d95d39",
+  Wisdom: "#6f4bc1",
+  Dexterity: "#0f766e",
+  Constitution: "#b58105",
+  Luck: "#667085",
+  Reputation: "#d95d39",
+  Resources: "#008c76",
 };
 
 const questBank = {
@@ -297,6 +307,7 @@ function setupRangeOutputs() {
 function setupChips() {
   const chipStores = {
     priorities: state.selectedPriorities,
+    buildGoals: state.selectedBuildGoals,
     travelNeeds: state.selectedTravelNeeds,
   };
 
@@ -334,6 +345,14 @@ function handleSeedFile(event) {
 
 function loadDemoSeed() {
   form.elements.seedText.value = demoSeed;
+  form.elements.worldLocation.value = "Singapore, hackathon floor, AI tools market";
+  form.elements.worldIndustry.value = "AI products and personal operating systems";
+  form.elements.worldCulture.value = "Fast-moving, demo-driven, social proof matters";
+  form.elements.worldConstraints.value = "Weekend deadline, limited backend, noisy environment, energy dips after lunch.";
+  form.elements.worldOpportunities.value = "Public GitHub repo, Pages deploy, live demo, access to AI APIs, curious early users.";
+  form.elements.evolutionConditions.value = "Needs user conversations, a clearer memory model, a testnet anchor, and one polished demo story.";
+  form.elements.partyText.value = "Hackathon teammates, potential users, mentors, online builders, future recovery partners.";
+  form.elements.inventoryText.value = "Static web app, GitHub repo, Pages deployment, tests, Soul Capsule export, product narrative.";
   form.elements.travelDestination.value = "Singapore";
   form.elements.travelNeedsText.value = "Reliable meals, easy transit, a calm place to reset, and low-friction evening options.";
   form.elements.travelWantsText.value = "Hawker food, design shops, waterfront walks, and one unexpected neighborhood.";
@@ -393,15 +412,37 @@ function generateQuestDex() {
 function buildProfile(data, seed) {
   const priorities = Array.from(state.selectedPriorities);
   const lowerSeed = seed.toLowerCase();
-  const lowerGoals = `${data.desiredEvolution || ""} ${data.blockers || ""}`.toLowerCase();
+  const lowerGoals = [
+    data.desiredEvolution || "",
+    data.blockers || "",
+    data.worldLocation || "",
+    data.worldIndustry || "",
+    data.worldCulture || "",
+    data.worldConstraints || "",
+    data.worldOpportunities || "",
+    data.evolutionConditions || "",
+    data.partyText || "",
+    data.inventoryText || "",
+  ]
+    .join(" ")
+    .toLowerCase();
   const combined = `${lowerSeed} ${lowerGoals}`;
   const inferredPriorities = inferPriorities(combined);
   const mergedPriorities = unique([...priorities, ...inferredPriorities]).slice(0, 5);
-  const primaryType = inferPrimaryType(data.lifeStage, mergedPriorities, combined);
-  const secondaryType = inferSecondaryType(combined, mergedPriorities);
+  const buildGoals = inferBuildGoals(combined);
+  const mergedBuildGoals = unique([...Array.from(state.selectedBuildGoals), ...buildGoals]).slice(0, 5);
+  const archetypes = inferHumanTypes(data.lifeStage, mergedPriorities, mergedBuildGoals, combined);
+  const primaryType = archetypes[0];
+  const secondaryType = archetypes[1] || "Strategist";
   const blockers = extractBlockers(data.blockers, seed);
   const insights = summarizeSeed(seed, data.desiredEvolution);
   const stats = buildStats(data, combined, mergedPriorities);
+  const humanStats = buildHumanStats(data, combined, mergedPriorities, mergedBuildGoals);
+  const worldContext = buildWorldContext(data, seed);
+  const party = buildParty(data, combined);
+  const inventory = buildInventory(data, combined);
+  const skillTree = buildSkillTree(archetypes, mergedPriorities, inventory, humanStats);
+  const evolutionPath = buildEvolutionPath(data, archetypes, worldContext, blockers, skillTree);
   const travelContext = buildTravelContext(data);
 
   return {
@@ -410,11 +451,19 @@ function buildProfile(data, seed) {
     desiredEvolution: data.desiredEvolution.trim(),
     coachTone: data.coachTone,
     priorities: mergedPriorities.length ? mergedPriorities : ["Career", "Health"],
+    buildGoals: mergedBuildGoals.length ? mergedBuildGoals : ["Freedom", "Mastery"],
+    archetypes,
     primaryType,
     secondaryType,
     blockers,
     insights,
     stats,
+    humanStats,
+    worldContext,
+    party,
+    inventory,
+    skillTree,
+    evolutionPath,
     travelContext,
     seedWordCount: countWords(seed),
     createdAt: new Date().toISOString(),
@@ -454,6 +503,72 @@ function inferSecondaryType(text, priorities) {
   return "Curious Strategist";
 }
 
+function inferBuildGoals(text) {
+  const checks = [
+    ["Wealth", ["wealth", "money", "income", "financial", "capital", "runway"]],
+    ["Freedom", ["freedom", "optional", "independent", "remote", "autonomy"]],
+    ["Mastery", ["mastery", "skill", "learn", "craft", "world-class"]],
+    ["Power", ["power", "lead", "influence", "control", "authority"]],
+    ["Love", ["love", "family", "relationship", "trust", "belong"]],
+    ["Adventure", ["adventure", "travel", "explore", "novel", "unknown"]],
+    ["Peace", ["peace", "calm", "rest", "stability", "recovery"]],
+    ["Service", ["service", "help", "impact", "community", "care"]],
+    ["Status", ["status", "reputation", "prestige", "credible", "proof"]],
+    ["Creativity", ["creative", "art", "design", "taste", "write"]],
+  ];
+
+  return checks.filter(([, keywords]) => keywords.some((keyword) => text.includes(keyword))).map(([name]) => name);
+}
+
+function inferHumanTypes(lifeStage, priorities, buildGoals, text) {
+  const scores = {
+    Builder: 0,
+    Scholar: 0,
+    Warrior: 0,
+    Merchant: 0,
+    Diplomat: 0,
+    Artist: 0,
+    Explorer: 0,
+    Healer: 0,
+    Strategist: 0,
+    Trickster: 0,
+  };
+
+  const add = (type, amount) => {
+    scores[type] += amount;
+  };
+
+  if (lifeStage === "Founder" || priorities.includes("Startup")) add("Builder", 5);
+  if (lifeStage === "Student" || priorities.includes("Study")) add("Scholar", 4);
+  if (lifeStage === "Recovery and reset" || priorities.includes("Recovery")) add("Healer", 4);
+  if (lifeStage === "Explorer") add("Explorer", 5);
+  if (buildGoals.includes("Adventure")) add("Explorer", 4);
+  if (priorities.includes("Career")) add("Strategist", 2);
+  if (priorities.includes("Money") || buildGoals.includes("Wealth")) add("Merchant", 4);
+  if (priorities.includes("Social") || buildGoals.includes("Love")) add("Diplomat", 4);
+  if (priorities.includes("Health")) add("Warrior", 3);
+  if (priorities.includes("Creativity") || buildGoals.includes("Creativity")) add("Artist", 4);
+  if (buildGoals.includes("Mastery")) add("Scholar", 2);
+  if (buildGoals.includes("Power") || buildGoals.includes("Status")) add("Strategist", 3);
+  if (buildGoals.includes("Service") || buildGoals.includes("Peace")) add("Healer", 2);
+
+  if (text.includes("hack") || text.includes("shortcut") || text.includes("exploit")) add("Trickster", 4);
+  if (text.includes("system") || text.includes("product") || text.includes("build")) add("Builder", 3);
+  if (text.includes("research") || text.includes("analy")) add("Scholar", 3);
+  if (text.includes("sales") || text.includes("customer")) add("Merchant", 2);
+  if (text.includes("mentor") || text.includes("community")) add("Diplomat", 2);
+  if (text.includes("crisis") || text.includes("protect")) add("Warrior", 2);
+  if (text.includes("travel") || text.includes("explore") || text.includes("unknown")) add("Explorer", 2);
+
+  return Object.entries(scores)
+    .sort((a, b) => b[1] - a[1])
+    .filter(([, score]) => score > 0)
+    .map(([type]) => type)
+    .slice(0, 2)
+    .concat(["Strategist"])
+    .slice(0, 2);
+}
+
 function buildStats(data, text, priorities) {
   const raw = {
     Energy: Number(data.energy || 50),
@@ -474,6 +589,151 @@ function buildStats(data, text, priorities) {
   return Object.fromEntries(
     Object.entries(raw).map(([key, value]) => [key, clamp(Math.round(value), 5, 96)]),
   );
+}
+
+function buildHumanStats(data, text, priorities, buildGoals) {
+  const energy = Number(data.energy || 50);
+  const focus = Number(data.focus || 50);
+  const confidence = Number(data.confidence || 50);
+  const consistency = Number(data.consistency || 50);
+  const raw = {
+    Strength: Math.round((energy + consistency) / 2),
+    Intelligence: focus + (priorities.includes("Study") ? 8 : 0),
+    Charisma: confidence + (priorities.includes("Social") ? 8 : 0),
+    Wisdom: Math.round((focus + consistency) / 2),
+    Dexterity: Math.round((focus + energy) / 2),
+    Constitution: Math.round((energy + consistency) / 2),
+    Luck: 45,
+    Reputation: 42 + (buildGoals.includes("Status") ? 10 : 0),
+    Resources: 42 + (priorities.includes("Money") || buildGoals.includes("Wealth") ? 10 : 0),
+  };
+
+  if (text.includes("network") || text.includes("mentor")) raw.Luck += 8;
+  if (text.includes("capital") || text.includes("runway") || text.includes("savings")) raw.Resources += 8;
+  if (text.includes("credential") || text.includes("github") || text.includes("portfolio")) raw.Reputation += 8;
+  if (text.includes("sleep") || text.includes("tired") || text.includes("burnout")) raw.Constitution -= 7;
+  if (text.includes("uncertain") || text.includes("visa") || text.includes("debt")) raw.Luck -= 5;
+  if (priorities.includes("Startup")) {
+    raw.Dexterity += 6;
+    raw.Reputation += 4;
+  }
+  if (buildGoals.includes("Peace")) raw.Wisdom += 5;
+  if (buildGoals.includes("Adventure")) raw.Luck += 5;
+
+  return Object.fromEntries(
+    Object.entries(raw).map(([key, value]) => [key, clamp(Math.round(value), 5, 96)]),
+  );
+}
+
+function buildWorldContext(data, seed) {
+  const source = `${data.worldConstraints || ""}\n${data.worldOpportunities || ""}\n${seed || ""}`;
+  return {
+    location: data.worldLocation?.trim() || "Unmapped arena",
+    industry: data.worldIndustry?.trim() || "Open-world / cross-domain",
+    culture: data.worldCulture?.trim() || "Rules still being discovered",
+    constraints: uniqueTextItems(parseListLike(data.worldConstraints || "").concat(extractWorldSignals(source, "constraint"))).slice(0, 5),
+    opportunities: uniqueTextItems(parseListLike(data.worldOpportunities || "").concat(extractWorldSignals(source, "opportunity"))).slice(0, 5),
+  };
+}
+
+function extractWorldSignals(text, mode) {
+  const lower = text.toLowerCase();
+  const constraints = [
+    ["Low energy", ["tired", "sleep", "burnout", "fatigue"]],
+    ["Time pressure", ["deadline", "demo", "due", "weekend"]],
+    ["Resource constraint", ["limited money", "budget", "debt", "runway"]],
+    ["Network gap", ["weak network", "no mentor", "alone"]],
+  ];
+  const opportunities = [
+    ["Mentor access", ["mentor", "advisor", "teacher"]],
+    ["Public proof", ["github", "portfolio", "demo", "public"]],
+    ["User signal", ["customer", "user", "interview"]],
+    ["Tool leverage", ["ai", "software", "automation", "tool"]],
+  ];
+  const table = mode === "constraint" ? constraints : opportunities;
+
+  return table.filter(([, keywords]) => keywords.some((keyword) => lower.includes(keyword))).map(([label]) => label);
+}
+
+function buildParty(data, text) {
+  const parsed = parseListLike(data.partyText || "");
+  if (parsed.length) return parsed.slice(0, 6);
+
+  const defaults = ["Future mentor", "Peer ally", "Friendly rival"];
+  if (text.includes("customer") || text.includes("user")) defaults.push("Target users");
+  if (text.includes("family")) defaults.push("Family system");
+  return defaults.slice(0, 6);
+}
+
+function buildInventory(data, text) {
+  const parsed = parseListLike(data.inventoryText || "");
+  if (parsed.length) return parsed.slice(0, 6);
+
+  const defaults = ["Current skills", "Personal device", "Time blocks"];
+  if (text.includes("github")) defaults.push("GitHub proof");
+  if (text.includes("portfolio")) defaults.push("Portfolio");
+  if (text.includes("capital") || text.includes("savings")) defaults.push("Runway");
+  return defaults.slice(0, 6);
+}
+
+function buildSkillTree(archetypes, priorities, inventory, humanStats) {
+  const skills = [];
+  const addSkill = (name, branch, status, linkedStats) => skills.push({ name, branch, status, linkedStats });
+
+  archetypes.forEach((type) => {
+    if (type === "Builder") addSkill("Ship small systems", "Builder", "active", ["Dexterity", "Reputation"]);
+    if (type === "Scholar") addSkill("Explain from first principles", "Scholar", "active", ["Intelligence", "Wisdom"]);
+    if (type === "Warrior") addSkill("Train the body under stress", "Warrior", "active", ["Strength", "Constitution"]);
+    if (type === "Merchant") addSkill("Make clean offers", "Merchant", "active", ["Charisma", "Resources"]);
+    if (type === "Diplomat") addSkill("Build trust loops", "Diplomat", "active", ["Charisma", "Reputation"]);
+    if (type === "Artist") addSkill("Turn taste into artifacts", "Artist", "active", ["Wisdom", "Reputation"]);
+    if (type === "Explorer") addSkill("Map unknown terrain", "Explorer", "active", ["Luck", "Dexterity"]);
+    if (type === "Healer") addSkill("Stabilize the system", "Healer", "active", ["Wisdom", "Constitution"]);
+    if (type === "Strategist") addSkill("Choose the right game", "Strategist", "active", ["Wisdom", "Intelligence"]);
+    if (type === "Trickster") addSkill("Find non-obvious routes", "Trickster", "active", ["Dexterity", "Luck"]);
+  });
+
+  if (priorities.includes("Startup")) addSkill("Validate with users", "Quest-critical", "unlocking", ["Charisma", "Reputation"]);
+  if (priorities.includes("Health")) addSkill("Energy floor", "Foundation", "active", ["Strength", "Constitution"]);
+  if (inventory.length >= 4) addSkill("Use inventory deliberately", "Loadout", "available", ["Wisdom", "Resources"]);
+  if (humanStats.Resources < 45) addSkill("Resource buffer", "Survival", "locked", ["Resources", "Wisdom"]);
+
+  return uniqueBySkill(skills).slice(0, 6);
+}
+
+function buildEvolutionPath(data, archetypes, worldContext, blockers, skillTree) {
+  const conditions = parseListLike(data.evolutionConditions || "");
+  const primary = archetypes[0] || "Explorer";
+  const nextForm = inferNextEvolution(primary, data.desiredEvolution || "");
+  const triggers = unique([
+    ...conditions,
+    ...blockers.map((blocker) => `Reduce ${blocker.toLowerCase()}`),
+    worldContext.opportunities[0] ? `Use ${worldContext.opportunities[0].toLowerCase()}` : "",
+    skillTree[0] ? `Practice ${skillTree[0].name.toLowerCase()}` : "",
+  ]).slice(0, 5);
+
+  return [
+    {
+      stage: "Current form",
+      title: `${primary}-${archetypes[1] || "Strategist"}`,
+      condition: "Mapped from current survey signals.",
+    },
+    {
+      stage: "Evolution target",
+      title: nextForm,
+      condition: triggers.join("; ") || "Complete three quests and reflect on the pattern.",
+    },
+  ];
+}
+
+function inferNextEvolution(primary, desiredEvolution) {
+  const lower = desiredEvolution.toLowerCase();
+  if (lower.includes("founder") || lower.includes("ship") || primary === "Builder") return "Systems Founder";
+  if (lower.includes("confident") || lower.includes("social") || primary === "Diplomat") return "Trusted Connector";
+  if (lower.includes("travel") || lower.includes("discover") || primary === "Explorer") return "World Mapper";
+  if (lower.includes("peace") || lower.includes("heal") || primary === "Healer") return "Stable Guide";
+  if (lower.includes("master") || primary === "Scholar") return "Domain Adept";
+  return `${primary} Ascendant`;
 }
 
 function buildTravelContext(data) {
@@ -640,8 +900,10 @@ function localizeTravelQuest(body, destination, travel) {
 function buildCoachGreeting(profile, quests, sideQuests = []) {
   const firstQuest = quests[0];
   const firstSideQuest = sideQuests[0];
+  const archetypes = profile.archetypes?.join("-") || `${profile.primaryType}-${profile.secondaryType}`;
   return [
-    `${profile.displayName}, your current form is ${profile.primaryType} with ${profile.secondaryType} tendencies.`,
+    `${profile.displayName}, your current build is ${archetypes}.`,
+    profile.worldContext?.location ? `Current map: ${profile.worldContext.location}.` : "",
     `Your best opening move is "${firstQuest.title}."`,
     firstSideQuest ? `Your side-quest radar is also tracking "${firstSideQuest.title}."` : "",
     profile.stats.Energy < 45
@@ -672,6 +934,20 @@ function buildCoachReply(prompt, profile, quests, sideQuests = []) {
   const sideQuest = sideQuests[0] || fallbackSideQuests[0];
   const travel = profile.travelContext || {};
   const weakStat = Object.entries(profile.stats).sort((a, b) => a[1] - b[1])[0][0];
+
+  if (lower.includes("build") || lower.includes("type") || lower.includes("archetype")) {
+    return coachToneWrap(
+      tone,
+      `Your current build reads as ${(profile.archetypes || [profile.primaryType, profile.secondaryType]).join("-")}. The useful question is not whether that label is permanent, but what world and quest conditions let it evolve.`,
+    );
+  }
+
+  if (lower.includes("world") || lower.includes("map") || lower.includes("environment")) {
+    return coachToneWrap(
+      tone,
+      `Your current map is ${profile.worldContext?.location || "partly unmapped"}. Watch the terrain: constraints are ${(profile.worldContext?.constraints || []).join(", ") || "still unclear"}; opportunities are ${(profile.worldContext?.opportunities || []).join(", ") || "still emerging"}.`,
+    );
+  }
 
   if (
     lower.includes("travel") ||
@@ -778,6 +1054,7 @@ function buildSoulCapsule(exportedAt = new Date().toISOString()) {
     sideQuests: state.sideQuests,
     chat: state.chat,
     priorities: Array.from(state.selectedPriorities),
+    buildGoals: Array.from(state.selectedBuildGoals),
     travelNeeds: Array.from(state.selectedTravelNeeds),
   };
 }
@@ -900,13 +1177,14 @@ async function buildSoulAnchorRecord(encryptedCapsule, options = {}) {
 function applySoulCapsule(capsule) {
   validateSoulCapsule(capsule);
 
-  state.profile = capsule.profile;
+  state.profile = ensureRpgProfileFields(capsule.profile);
   state.quests = capsule.quests?.length ? capsule.quests : buildQuests(state.profile);
   state.sideQuests = capsule.sideQuests?.length ? capsule.sideQuests : buildSideQuests(state.profile);
   state.chat = capsule.chat?.length
     ? capsule.chat
     : [{ role: "coach", content: buildCoachGreeting(state.profile, state.quests, state.sideQuests) }];
   state.selectedPriorities = new Set(capsule.priorities || state.profile.priorities || ["Career", "Health"]);
+  state.selectedBuildGoals = new Set(capsule.buildGoals || state.profile.buildGoals || ["Freedom", "Mastery"]);
   state.selectedTravelNeeds = new Set(
     capsule.travelNeeds || state.profile.travelContext?.needs || ["Food", "Culture", "Events"],
   );
@@ -1014,23 +1292,29 @@ function renderDashboard() {
   if (!state.profile) return;
 
   const profile = state.profile;
-  document.querySelector("#profileTitle").textContent = profile.primaryType;
+  ensureRpgProfileFields(profile);
+  document.querySelector("#profileTitle").textContent = profile.archetypes?.join("-") || profile.primaryType;
   document.querySelector("#profileSubtitle").textContent =
-    `${profile.displayName} is in ${profile.lifeStage.toLowerCase()} mode, training toward: ${profile.desiredEvolution}`;
+    `${profile.displayName} is playing ${profile.lifeStage.toLowerCase()} mode, training toward: ${profile.desiredEvolution}`;
   document.querySelector("#coachToneBadge").textContent = profile.coachTone;
 
   renderDexList(profile);
-  renderStats(profile.stats);
+  renderStats(profile.humanStats || profile.stats);
+  renderWorld(profile.worldContext);
+  renderBuild(profile);
   renderQuests(state.quests);
   renderSideQuests(state.sideQuests, profile.travelContext);
+  renderProgression(profile.skillTree, profile.evolutionPath);
+  renderLoadout(profile.party, profile.inventory);
   renderInsights(profile.insights);
   renderCoachFeed();
 }
 
 function renderDexList(profile) {
   const rows = [
-    ["Secondary type", profile.secondaryType],
-    ["Priorities", profile.priorities.join(", ")],
+    ["Dual type", profile.archetypes?.join(" / ") || `${profile.primaryType} / ${profile.secondaryType}`],
+    ["Build goals", profile.buildGoals?.join(", ") || "Freedom, Mastery"],
+    ["Quest domains", profile.priorities.join(", ")],
     ["Known blockers", profile.blockers.join(", ")],
     ["Travel lens", formatTravelLens(profile.travelContext)],
     ["Seed size", profile.seedWordCount ? `${profile.seedWordCount} words` : "Survey only"],
@@ -1063,6 +1347,92 @@ function renderStats(stats) {
         </div>
       `,
     )
+    .join("");
+}
+
+function renderWorld(worldContext = {}) {
+  const rows = [
+    ["Location", worldContext.location || "Unmapped arena"],
+    ["Industry", worldContext.industry || "Open-world / cross-domain"],
+    ["Culture", worldContext.culture || "Rules still being discovered"],
+    ["Constraints", formatList(worldContext.constraints, "No major debuffs mapped yet")],
+    ["Opportunities", formatList(worldContext.opportunities, "No buffs mapped yet")],
+  ];
+
+  document.querySelector("#worldList").innerHTML = rows
+    .map(
+      ([term, detail]) => `
+        <div>
+          <dt>${escapeHtml(term)}</dt>
+          <dd>${escapeHtml(detail)}</dd>
+        </div>
+      `,
+    )
+    .join("");
+}
+
+function renderBuild(profile) {
+  const buildCards = [
+    {
+      title: "Human type",
+      body: formatList(profile.archetypes, "Adaptive Explorer"),
+    },
+    {
+      title: "Optimizing for",
+      body: formatList(profile.buildGoals, "Freedom, Mastery"),
+    },
+    {
+      title: "Quest domains",
+      body: formatList(profile.priorities, "Career, Health"),
+    },
+    {
+      title: "Training friction",
+      body: formatList(profile.blockers, "Needs clearer next actions"),
+    },
+  ];
+
+  document.querySelector("#buildList").innerHTML = buildCards
+    .map(
+      (card) => `
+        <article>
+          <h4>${escapeHtml(card.title)}</h4>
+          <p>${escapeHtml(card.body)}</p>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderProgression(skillTree = [], evolutionPath = []) {
+  document.querySelector("#skillTreeList").innerHTML = skillTree
+    .map(
+      (skill) => `
+        <article>
+          <h4>${escapeHtml(skill.name)}</h4>
+          <p>${escapeHtml(skill.branch)} | ${escapeHtml(skill.status)} | ${escapeHtml(formatList(skill.linkedStats, "No linked stats"))}</p>
+        </article>
+      `,
+    )
+    .join("");
+
+  document.querySelector("#evolutionList").innerHTML = evolutionPath
+    .map(
+      (step) => `
+        <article>
+          <h4>${escapeHtml(step.stage)}: ${escapeHtml(step.title)}</h4>
+          <p>${escapeHtml(step.condition)}</p>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderLoadout(party = [], inventory = []) {
+  document.querySelector("#partyList").innerHTML = party
+    .map((member) => `<li>${escapeHtml(member)}</li>`)
+    .join("");
+  document.querySelector("#inventoryList").innerHTML = inventory
+    .map((item) => `<li>${escapeHtml(item)}</li>`)
     .join("");
 }
 
@@ -1168,6 +1538,7 @@ function persistProfile() {
       sideQuests: state.sideQuests,
       chat: state.chat,
       priorities: Array.from(state.selectedPriorities),
+      buildGoals: Array.from(state.selectedBuildGoals),
       travelNeeds: Array.from(state.selectedTravelNeeds),
     }),
   );
@@ -1184,9 +1555,11 @@ function restoreSavedProfile() {
     state.sideQuests = parsed.sideQuests || [];
     state.chat = parsed.chat || [];
     state.selectedPriorities = new Set(parsed.priorities || ["Career", "Health"]);
+    state.selectedBuildGoals = new Set(parsed.buildGoals || state.profile?.buildGoals || ["Freedom", "Mastery"]);
     state.selectedTravelNeeds = new Set(parsed.travelNeeds || ["Food", "Culture", "Events"]);
 
     if (state.profile) {
+      ensureRpgProfileFields(state.profile);
       if (!state.profile.travelContext) {
         state.profile.travelContext = {
           destination: "",
@@ -1199,8 +1572,14 @@ function restoreSavedProfile() {
           active: false,
         };
       }
+      if (!state.quests.length) {
+        state.quests = buildQuests(state.profile);
+      }
       if (!state.sideQuests.length) {
         state.sideQuests = buildSideQuests(state.profile);
+      }
+      if (!state.chat.length) {
+        state.chat = [{ role: "coach", content: buildCoachGreeting(state.profile, state.quests, state.sideQuests) }];
       }
       dashboard.hidden = false;
       renderDashboard();
@@ -1226,6 +1605,206 @@ function formatTravelLens(travelContext = {}) {
   const destination = travelContext.destination || "New country mode";
   const needs = travelContext.needs?.length ? travelContext.needs.slice(0, 3).join(", ") : "general discovery";
   return `${destination}: ${needs}`;
+}
+
+function ensureRpgProfileFields(profile) {
+  if (!profile || typeof profile !== "object") return profile;
+
+  profile.priorities = normalizeArray(profile.priorities, ["Career", "Health"]).slice(0, 5);
+  profile.buildGoals = normalizeArray(profile.buildGoals, Array.from(state.selectedBuildGoals || [])).slice(0, 5);
+  if (!profile.buildGoals.length) profile.buildGoals = ["Freedom", "Mastery"];
+
+  const inferredArchetypes = [
+    ...normalizeArray(profile.archetypes),
+    toArchetypeName(profile.primaryType),
+    toArchetypeName(profile.secondaryType),
+  ];
+  profile.archetypes = uniqueTextItems(inferredArchetypes).slice(0, 2);
+  if (!profile.archetypes.length) profile.archetypes = ["Explorer", "Strategist"];
+  if (profile.archetypes.length === 1) profile.archetypes.push("Strategist");
+  profile.primaryType = profile.archetypes[0];
+  profile.secondaryType = profile.archetypes[1];
+
+  profile.blockers = normalizeArray(profile.blockers, ["Needs clearer next actions"]).slice(0, 5);
+  profile.insights = normalizeArray(profile.insights, [
+    "No seed data added yet, so the coach is relying on survey answers.",
+  ]);
+  profile.stats = profile.stats || legacyStatsFromHumanStats(profile.humanStats);
+  profile.humanStats = profile.humanStats || humanStatsFromLegacyStats(profile.stats);
+  profile.worldContext = normalizeWorldContext(profile.worldContext, profile);
+  profile.party = normalizeArray(profile.party, ["Future mentor", "Peer ally", "Friendly rival"]).slice(0, 6);
+  profile.inventory = normalizeArray(profile.inventory, ["Current skills", "Personal device", "Time blocks"]).slice(0, 6);
+  profile.travelContext = normalizeTravelContext(profile.travelContext);
+  profile.skillTree = normalizeSkillTree(profile.skillTree);
+  if (!profile.skillTree.length) {
+    profile.skillTree = buildSkillTree(profile.archetypes, profile.priorities, profile.inventory, profile.humanStats);
+  }
+  profile.evolutionPath = normalizeEvolutionPath(profile.evolutionPath, profile);
+  profile.seedWordCount = Number(profile.seedWordCount || 0);
+  profile.displayName = profile.displayName || "New trainer";
+  profile.lifeStage = profile.lifeStage || "Explorer";
+  profile.desiredEvolution = profile.desiredEvolution || "Become more capable in the current world.";
+  profile.coachTone = profile.coachTone || "Direct and warm";
+
+  return profile;
+}
+
+function normalizeArray(value, fallback = []) {
+  if (Array.isArray(value)) return value.filter(Boolean).map((item) => String(item).trim()).filter(Boolean);
+  if (typeof value === "string") return parseListLike(value);
+  return [...fallback];
+}
+
+function parseListLike(value) {
+  if (!value) return [];
+
+  return String(value)
+    .split(/\r?\n|;|,/)
+    .map((item) =>
+      item
+        .replace(/^\s*[-*•]\s*/, "")
+        .replace(/^\s*\d+[.)]\s*/, "")
+        .replace(/\s+/g, " ")
+        .replace(/[.]+$/g, "")
+        .trim(),
+    )
+    .filter(Boolean);
+}
+
+function normalizeWorldContext(worldContext = {}, profile = {}) {
+  const blockers = normalizeArray(profile.blockers).slice(0, 3);
+  const insightOpportunities = normalizeArray(profile.insights)
+    .filter((insight) => /user|demo|public|specific|targeted/i.test(insight))
+    .slice(0, 3);
+
+  return {
+    location: worldContext.location || "Unmapped arena",
+    industry: worldContext.industry || "Open-world / cross-domain",
+    culture: worldContext.culture || "Rules still being discovered",
+    constraints: normalizeArray(worldContext.constraints, blockers.length ? blockers : ["No major debuffs mapped yet"]).slice(0, 5),
+    opportunities: normalizeArray(
+      worldContext.opportunities,
+      insightOpportunities.length ? insightOpportunities : ["Next useful route can be discovered"],
+    ).slice(0, 5),
+  };
+}
+
+function normalizeTravelContext(travelContext = {}) {
+  return {
+    destination: travelContext.destination || "",
+    mode: travelContext.mode || "On the ground today",
+    whimsy: Number(travelContext.whimsy || 50),
+    needs: normalizeArray(travelContext.needs, Array.from(state.selectedTravelNeeds || [])).slice(0, 6),
+    needsText: travelContext.needsText || "",
+    wantsText: travelContext.wantsText || "",
+    eventsSeed: travelContext.eventsSeed || "",
+    active: Boolean(
+      travelContext.active ||
+        travelContext.destination ||
+        travelContext.needsText ||
+        travelContext.wantsText ||
+        travelContext.eventsSeed,
+    ),
+  };
+}
+
+function normalizeSkillTree(skillTree = []) {
+  if (!Array.isArray(skillTree)) return [];
+
+  return uniqueBySkill(
+    skillTree
+      .filter((skill) => skill && typeof skill === "object")
+      .map((skill) => ({
+        name: skill.name || "Unnamed skill",
+        branch: skill.branch || "General",
+        status: skill.status || "available",
+        linkedStats: normalizeArray(skill.linkedStats, ["Wisdom"]),
+      })),
+  ).slice(0, 6);
+}
+
+function normalizeEvolutionPath(evolutionPath = [], profile = {}) {
+  if (Array.isArray(evolutionPath) && evolutionPath.length) {
+    return evolutionPath
+      .filter((step) => step && typeof step === "object")
+      .map((step) => ({
+        stage: step.stage || "Evolution step",
+        title: step.title || "Next form",
+        condition: step.condition || "Complete quests and review the pattern.",
+      }))
+      .slice(0, 4);
+  }
+
+  return [
+    {
+      stage: "Current form",
+      title: `${profile.primaryType || "Explorer"}-${profile.secondaryType || "Strategist"}`,
+      condition: "Mapped from current survey signals.",
+    },
+    {
+      stage: "Evolution target",
+      title: inferNextEvolution(profile.primaryType || "Explorer", profile.desiredEvolution || ""),
+      condition: "Complete three quests, protect one recovery block, and record what changed.",
+    },
+  ];
+}
+
+function humanStatsFromLegacyStats(stats = {}) {
+  const energy = Number(stats.Energy || 50);
+  const focus = Number(stats.Focus || 50);
+  const confidence = Number(stats.Confidence || 50);
+  const consistency = Number(stats.Consistency || 50);
+  const social = Number(stats.Social || confidence);
+
+  return {
+    Strength: clamp(Math.round((energy + consistency) / 2), 5, 96),
+    Intelligence: clamp(Math.round(focus), 5, 96),
+    Charisma: clamp(Math.round((confidence + social) / 2), 5, 96),
+    Wisdom: clamp(Math.round((focus + consistency) / 2), 5, 96),
+    Dexterity: clamp(Math.round((focus + energy) / 2), 5, 96),
+    Constitution: clamp(Math.round((energy + consistency) / 2), 5, 96),
+    Luck: 50,
+    Reputation: clamp(Math.round(confidence), 5, 96),
+    Resources: 50,
+  };
+}
+
+function legacyStatsFromHumanStats(humanStats = {}) {
+  return {
+    Energy: Number(humanStats.Strength || humanStats.Constitution || 50),
+    Focus: Number(humanStats.Intelligence || humanStats.Wisdom || 50),
+    Confidence: Number(humanStats.Charisma || humanStats.Reputation || 50),
+    Consistency: Number(humanStats.Constitution || humanStats.Wisdom || 50),
+    Creativity: Number(humanStats.Luck || 50),
+    Social: Number(humanStats.Charisma || 50),
+  };
+}
+
+function toArchetypeName(value) {
+  const text = String(value || "").toLowerCase();
+  if (!text) return "";
+  if (text.includes("builder") || text.includes("founder") || text.includes("venture") || text.includes("maker")) {
+    return "Builder";
+  }
+  if (text.includes("knowledge") || text.includes("scholar") || text.includes("study") || text.includes("adept")) {
+    return "Scholar";
+  }
+  if (text.includes("energy") || text.includes("warrior") || text.includes("body")) return "Warrior";
+  if (text.includes("merchant") || text.includes("resource") || text.includes("money")) return "Merchant";
+  if (text.includes("connection") || text.includes("courage") || text.includes("social") || text.includes("diplomat")) {
+    return "Diplomat";
+  }
+  if (text.includes("creative") || text.includes("artist")) return "Artist";
+  if (text.includes("explorer") || text.includes("scout") || text.includes("mapper")) return "Explorer";
+  if (text.includes("healer") || text.includes("recovery") || text.includes("restarter")) return "Healer";
+  if (text.includes("trickster")) return "Trickster";
+  if (text.includes("leader") || text.includes("strateg")) return "Strategist";
+  return value;
+}
+
+function formatList(items, fallback) {
+  const values = normalizeArray(items);
+  return values.length ? values.join(", ") : fallback;
 }
 
 async function deriveSoulKey(passphrase, salt) {
@@ -1327,11 +1906,32 @@ function unique(items) {
   return [...new Set(items.filter(Boolean))];
 }
 
+function uniqueTextItems(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = String(item || "").trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function uniqueByTitle(items) {
   const seen = new Set();
   return items.filter((item) => {
     if (seen.has(item.title)) return false;
     seen.add(item.title);
+    return true;
+  });
+}
+
+function uniqueBySkill(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    if (!item?.name) return false;
+    const key = item.name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 }

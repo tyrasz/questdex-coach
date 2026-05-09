@@ -13,7 +13,7 @@
           <div class="brand-mark" aria-hidden="true">QD</div>
           <div>
             <p class="eyebrow">QuestDex</p>
-            <h1>Life coach field guide</h1>
+            <h1>Human RPG Builder</h1>
           </div>
         </div>
 
@@ -37,7 +37,7 @@
         </nav>
 
         <div class="rail-note">
-          <p>Build a living profile, train real-life stats, and turn ambition into quests.</p>
+          <p>Map your character, world, build, party, inventory, quests, and evolution path.</p>
         </div>
       </aside>
 
@@ -45,10 +45,10 @@
         <section id="intake" class="workspace-band">
           <div class="section-header">
             <p class="eyebrow">Start here</p>
-            <h2>Survey your current form</h2>
+            <h2>Survey your current build</h2>
             <p>
-              Answer a few prompts so the coach can estimate your stage, strengths,
-              blockers, and next useful quests.
+              Answer a few prompts so the system can map your character, world,
+              constraints, build path, and next useful quests.
             </p>
           </div>
 
@@ -110,7 +110,22 @@
             </fieldset>
 
             <fieldset class="panel wide-panel">
-              <legend>Priorities and blockers</legend>
+              <legend>Build, priorities, and blockers</legend>
+              <p class="field-note">Choose what this current life build is optimizing for.</p>
+              <div class="chip-group" data-chip-group="buildGoals">
+                <button type="button" data-value="Wealth">Wealth</button>
+                <button type="button" data-value="Freedom">Freedom</button>
+                <button type="button" data-value="Mastery">Mastery</button>
+                <button type="button" data-value="Power">Power</button>
+                <button type="button" data-value="Love">Love</button>
+                <button type="button" data-value="Adventure">Adventure</button>
+                <button type="button" data-value="Peace">Peace</button>
+                <button type="button" data-value="Service">Service</button>
+                <button type="button" data-value="Status">Status</button>
+                <button type="button" data-value="Creativity">Creativity</button>
+              </div>
+
+              <p class="field-note">Choose training domains for the quest generator.</p>
               <div class="chip-group" data-chip-group="priorities">
                 <button type="button" data-value="Career">Career</button>
                 <button type="button" data-value="Study">Study</button>
@@ -140,6 +155,90 @@
                   <option value="Playful and game-like">Playful and game-like</option>
                 </select>
               </label>
+            </fieldset>
+
+            <fieldset class="panel wide-panel">
+              <legend>World, party, and inventory</legend>
+              <div class="rpg-grid">
+                <label>
+                  Current location or arena
+                  <input
+                    name="worldLocation"
+                    type="text"
+                    placeholder="Singapore, startup ecosystem, university, remote work"
+                    autocomplete="off"
+                  />
+                </label>
+
+                <label>
+                  Industry or guild
+                  <input
+                    name="worldIndustry"
+                    type="text"
+                    placeholder="AI tools, design, finance, healthcare, education"
+                    autocomplete="off"
+                  />
+                </label>
+
+                <label>
+                  Cultural terrain
+                  <input
+                    name="worldCulture"
+                    type="text"
+                    placeholder="Fast-moving, conservative, competitive, collaborative"
+                    autocomplete="off"
+                  />
+                </label>
+              </div>
+
+              <div class="rpg-grid">
+                <label>
+                  Constraints or debuffs
+                  <textarea
+                    name="worldConstraints"
+                    rows="3"
+                    placeholder="Limited money, visa uncertainty, family pressure, low energy, weak network."
+                  ></textarea>
+                </label>
+
+                <label>
+                  Opportunities or buffs
+                  <textarea
+                    name="worldOpportunities"
+                    rows="3"
+                    placeholder="Hackathon, mentor access, savings runway, city events, useful tools."
+                  ></textarea>
+                </label>
+
+                <label>
+                  Evolution conditions
+                  <textarea
+                    name="evolutionConditions"
+                    rows="3"
+                    placeholder="Needs a new environment, more trust, capital, a mentor, better sleep, or a proof-of-work artifact."
+                  ></textarea>
+                </label>
+              </div>
+
+              <div class="rpg-grid two-column">
+                <label>
+                  Party
+                  <textarea
+                    name="partyText"
+                    rows="3"
+                    placeholder="Mentors, allies, collaborators, rivals, dependents, guilds, institutions."
+                  ></textarea>
+                </label>
+
+                <label>
+                  Inventory
+                  <textarea
+                    name="inventoryText"
+                    rows="3"
+                    placeholder="Skills, tools, credentials, money, reputation, relationships, health assets."
+                  ></textarea>
+                </label>
+              </div>
             </fieldset>
 
             <section id="seed" class="panel wide-panel seed-panel" aria-labelledby="seedTitle">
@@ -263,8 +362,8 @@
         <section id="dashboard" class="workspace-band dashboard-band" hidden>
           <div class="section-header">
             <p class="eyebrow">Generated profile</p>
-            <h2>Your QuestDex entry</h2>
-            <p>The coach converts your survey and seed data into stats, moves, quests, and next actions.</p>
+            <h2>Your Human Pokédex entry</h2>
+            <p>The system converts your survey and seed data into character, world, build, party, inventory, quests, and evolution signals.</p>
           </div>
 
           <div class="dashboard-grid">
@@ -295,6 +394,18 @@
               <div id="statsList" class="stats-list"></div>
             </section>
 
+            <section class="panel world-panel" aria-labelledby="worldTitle">
+              <p class="eyebrow">World</p>
+              <h3 id="worldTitle">Current map</h3>
+              <dl class="dex-list compact-dex-list" id="worldList"></dl>
+            </section>
+
+            <section class="panel build-panel" aria-labelledby="buildTitle">
+              <p class="eyebrow">Build</p>
+              <h3 id="buildTitle">Optimization path</h3>
+              <div id="buildList" class="build-list"></div>
+            </section>
+
             <section class="panel quests-panel" aria-labelledby="questsTitle">
               <div class="panel-heading">
                 <div>
@@ -316,6 +427,28 @@
               </div>
               <p id="travelContextLine" class="travel-context-line"></p>
               <div id="sideQuestList" class="sidequest-list"></div>
+            </section>
+
+            <section class="panel evolution-panel" aria-labelledby="evolutionTitle">
+              <p class="eyebrow">Progression</p>
+              <h3 id="evolutionTitle">Skill tree and evolution path</h3>
+              <div id="skillTreeList" class="skill-tree-list"></div>
+              <div id="evolutionList" class="evolution-list"></div>
+            </section>
+
+            <section class="panel party-panel" aria-labelledby="partyTitle">
+              <p class="eyebrow">Party and inventory</p>
+              <h3 id="partyTitle">Current loadout</h3>
+              <div class="loadout-grid">
+                <div>
+                  <h4>Party</h4>
+                  <ul id="partyList" class="loadout-list"></ul>
+                </div>
+                <div>
+                  <h4>Inventory</h4>
+                  <ul id="inventoryList" class="loadout-list"></ul>
+                </div>
+              </div>
             </section>
 
             <section class="panel insights-panel" aria-labelledby="insightsTitle">

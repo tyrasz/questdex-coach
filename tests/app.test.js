@@ -85,6 +85,15 @@ function baseSurvey(overrides = {}) {
     consistency: "39",
     blockers: "I overplan, get tired in unfamiliar cities, and miss interesting local events.",
     coachTone: "Direct and warm",
+    worldLocation: "Singapore startup ecosystem with Seoul as a field map",
+    worldIndustry: "AI travel tools",
+    worldCulture: "Fast demos, public proof, and mentor feedback loops",
+    worldConstraints: "Limited budget, light rain, low energy",
+    worldOpportunities: "Mentor access, GitHub demo, user interviews, AI automation",
+    partyText: "Hackathon teammates, vegetarian cafe staff, local jazz host, future mentor",
+    inventoryText: "GitHub repo, transit card, noise-canceling headphones, saved map pins",
+    evolutionConditions:
+      "Ship a public demo, interview two travelers, keep one recovery block protected",
     travelDestination: "Seoul, South Korea",
     travelMode: "On the ground today",
     whimsy: "78",
@@ -107,6 +116,72 @@ test("buildProfile creates a typed profile with travel context", () => {
   assert.ok(profile.travelContext.needs.includes("Food"));
   assert.ok(profile.travelContext.needs.includes("Quiet"));
   assert.ok(profile.blockers.includes("Overplanning"));
+});
+
+test("buildProfile exposes the RPG human model", () => {
+  const app = loadAppContext();
+  const profile = app.buildProfile(
+    baseSurvey({
+      desiredEvolution:
+        "I want freedom, mastery, adventure, and service while becoming a trusted AI travel builder.",
+      energy: "62",
+      focus: "70",
+      confidence: "52",
+      consistency: "44",
+    }),
+    "demo deadline, GitHub proof, user interviews, mentor feedback, limited money, tired after travel",
+  );
+
+  assert.equal(profile.worldContext.location, "Singapore startup ecosystem with Seoul as a field map");
+  assert.equal(profile.worldContext.industry, "AI travel tools");
+  assert.equal(profile.worldContext.culture, "Fast demos, public proof, and mentor feedback loops");
+  assert.ok(profile.worldContext.constraints.includes("Limited budget"));
+  assert.ok(profile.worldContext.constraints.includes("Time pressure"));
+  assert.ok(profile.worldContext.opportunities.includes("GitHub demo"));
+  assert.ok(profile.worldContext.opportunities.includes("user interviews"));
+
+  assert.ok(profile.buildGoals.includes("Freedom"));
+  assert.ok(profile.buildGoals.includes("Mastery"));
+  assert.ok(profile.buildGoals.includes("Adventure"));
+  assert.ok(profile.archetypes.includes("Explorer"));
+  assert.ok(profile.archetypes.length >= 1);
+
+  assert.equal(profile.humanStats.Intelligence, 70);
+  assert.equal(profile.humanStats.Dexterity, 72);
+  assert.equal(profile.humanStats.Constitution, 46);
+  assert.ok(profile.humanStats.Reputation >= 50);
+  assert.ok(profile.humanStats.Resources >= 50);
+
+  assert.deepEqual([...profile.party.slice(0, 4)], [
+    "Hackathon teammates",
+    "vegetarian cafe staff",
+    "local jazz host",
+    "future mentor",
+  ]);
+  assert.deepEqual([...profile.inventory.slice(0, 4)], [
+    "GitHub repo",
+    "transit card",
+    "noise-canceling headphones",
+    "saved map pins",
+  ]);
+
+  assert.ok(
+    profile.skillTree.some(
+      (skill) =>
+        skill.name === "Map unknown terrain" &&
+        skill.branch === "Explorer" &&
+        skill.status === "active" &&
+        skill.linkedStats.includes("Luck"),
+    ),
+  );
+  assert.ok(profile.skillTree.some((skill) => skill.name === "Use inventory deliberately"));
+
+  assert.equal(profile.evolutionPath[0].stage, "Current form");
+  assert.match(profile.evolutionPath[0].title, /Explorer/);
+  assert.equal(profile.evolutionPath[1].stage, "Evolution target");
+  assert.equal(profile.evolutionPath[1].title, "World Mapper");
+  assert.match(profile.evolutionPath[1].condition, /Ship a public demo/);
+  assert.match(profile.evolutionPath[1].condition, /interview two travelers/);
 });
 
 test("buildQuests includes stabilizing quests for known blockers", () => {
@@ -181,6 +256,55 @@ test("Soul Capsule export and import preserves generated coach state", () => {
   assert.equal(exportedAgain.profile.displayName, "Mira");
   assert.equal(exportedAgain.profile.travelContext.destination, "Seoul, South Korea");
   assert.equal(exportedAgain.chat[0].content, "Welcome back.");
+});
+
+test("legacy Soul Capsules are upgraded with stable RPG fields", () => {
+  const app = loadAppContext();
+  const legacyCapsule = {
+    schemaVersion: 1,
+    app: "QuestDex Coach",
+    exportedAt: "2026-05-09T00:00:00.000Z",
+    profile: {
+      displayName: "Kai",
+      lifeStage: "Career transition",
+      desiredEvolution: "Become a confident operator with better options.",
+      coachTone: "Direct and warm",
+      primaryType: "Adaptive Explorer",
+      secondaryType: "Curious Strategist",
+      priorities: ["Career"],
+      blockers: ["Unclear priorities"],
+      insights: ["Survey-only profile."],
+      stats: {
+        Energy: 51,
+        Focus: 64,
+        Confidence: 43,
+        Consistency: 40,
+        Creativity: 50,
+        Social: 46,
+      },
+      seedWordCount: 0,
+    },
+    quests: [],
+    sideQuests: [],
+    chat: [],
+    priorities: ["Career"],
+    travelNeeds: ["Food"],
+  };
+
+  app.applySoulCapsule(legacyCapsule);
+  const upgraded = app.buildSoulCapsule("2026-05-09T00:00:00.000Z");
+
+  assert.equal(upgraded.profile.displayName, "Kai");
+  assert.ok(upgraded.profile.archetypes.includes("Explorer"));
+  assert.ok(upgraded.profile.humanStats.Intelligence >= 60);
+  assert.equal(upgraded.profile.worldContext.location, "Unmapped arena");
+  assert.ok(upgraded.profile.party.length > 0);
+  assert.ok(upgraded.profile.inventory.length > 0);
+  assert.ok(upgraded.profile.skillTree.length > 0);
+  assert.equal(upgraded.profile.evolutionPath[0].stage, "Current form");
+  assert.ok(upgraded.quests.length > 0);
+  assert.ok(upgraded.sideQuests.length > 0);
+  assert.ok(upgraded.buildGoals.includes("Freedom"));
 });
 
 test("Soul Capsule validation rejects unrelated JSON", () => {
