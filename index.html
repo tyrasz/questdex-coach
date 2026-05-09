@@ -250,42 +250,12 @@
                 <span class="privacy-pill">User-approved</span>
               </div>
 
-              <div class="source-lanes">
-                <div class="source-lane">
-                  <div class="source-lane-heading">
-                    <div>
-                      <p class="eyebrow">ChatGPT</p>
-                      <h4>Memory seed</h4>
-                    </div>
-                    <span class="source-badge">JSON</span>
-                  </div>
-                  <label>
-                    ChatGPT profile JSON
-                    <textarea
-                      id="chatgptSeedInput"
-                      rows="8"
-                      placeholder='{"displayName":"Mira","buildGoals":["Freedom","Mastery"],"inventory":["GitHub repos","AI prototypes"]}'
-                    ></textarea>
-                  </label>
-                  <div class="source-actions">
-                    <button class="secondary-button compact-button" type="button" id="copyChatGptPrompt">
-                      Copy prompt
-                    </button>
-                    <button class="secondary-button compact-button" type="button" id="loadChatGptExample">
-                      Load example
-                    </button>
-                    <button class="primary-button compact-button" type="button" id="applyChatGptSeed">
-                      Apply seed
-                    </button>
-                  </div>
-                  <p id="chatgptSeedStatus" class="source-status"></p>
-                </div>
-
+              <div class="source-lanes source-lanes--focused">
                 <div class="source-lane">
                   <div class="source-lane-heading">
                     <div>
                       <p class="eyebrow">GitHub</p>
-                      <h4>Repo signal scan</h4>
+                      <h4>Recent work and stars</h4>
                     </div>
                     <span class="source-badge">Public</span>
                   </div>
@@ -295,37 +265,11 @@
                   </label>
                   <div class="source-actions">
                     <button class="primary-button compact-button" type="button" id="analyzeGithub">
-                      Analyze repos
+                      Analyze activity
                     </button>
                   </div>
                   <div id="githubRepoHighlights" class="github-highlights" hidden></div>
                   <p id="githubImportStatus" class="source-status"></p>
-                </div>
-
-                <div class="source-lane oauth-lane">
-                  <div class="source-lane-heading">
-                    <div>
-                      <p class="eyebrow">GitHub</p>
-                      <h4>Private repo unlock</h4>
-                    </div>
-                    <span class="source-badge">OAuth</span>
-                  </div>
-                  <div class="oauth-preview">
-                    <dl>
-                      <div>
-                        <dt>Scope</dt>
-                        <dd>Repo metadata, languages, topics, README signals</dd>
-                      </div>
-                      <div>
-                        <dt>Storage</dt>
-                        <dd>No browser token storage</dd>
-                      </div>
-                    </dl>
-                  </div>
-                  <button class="secondary-button compact-button" type="button" id="githubOAuthButton">
-                    Check unlock path
-                  </button>
-                  <p id="githubOAuthStatus" class="source-status"></p>
                 </div>
               </div>
 
@@ -506,36 +450,57 @@
             <section id="sidequests" class="panel wide-panel sidequest-setup" aria-labelledby="sideQuestSetupTitle">
               <div class="panel-heading">
                 <div>
-                  <p class="eyebrow">Optional side quest pack</p>
-                  <h3 id="sideQuestSetupTitle">Travel quest radar</h3>
+                  <p class="eyebrow">Optional</p>
+                  <h3 id="sideQuestSetupTitle">Side quest pack</h3>
                 </div>
-                <span class="privacy-pill">Destination-aware</span>
+                <span id="sideQuestModeBadge" class="privacy-pill">Off by default</span>
               </div>
 
+              <div class="sidequest-selector-grid">
+                <label>
+                  Side quest mode
+                  <select name="sideQuestMode" id="sideQuestMode">
+                    <option value="Off">Off</option>
+                    <option value="Travel">Travel discovery</option>
+                    <option value="Project">Project momentum</option>
+                    <option value="Career">Career options</option>
+                    <option value="Learning">Learning path</option>
+                    <option value="Wellness">Wellness and recovery</option>
+                    <option value="Social">Social connection</option>
+                    <option value="Creative">Creative practice</option>
+                  </select>
+                </label>
+              </div>
+
+              <div id="sideQuestConfig" class="sidequest-config" hidden>
               <div class="travel-grid">
                 <label>
-                  Destination
+                  <span id="sideQuestFocusLabel">Focus area</span>
                   <input
                     name="travelDestination"
                     type="text"
-                    placeholder="Seoul, South Korea"
+                    placeholder="Seoul, South Korea; QuestDex launch; interview prep"
                     autocomplete="off"
                   />
                 </label>
 
                 <label>
-                  Trip mode
+                  <span id="sideQuestPaceLabel">Quest pace</span>
                   <select name="travelMode">
                     <option value="On the ground today">On the ground today</option>
                     <option value="Planning a future trip">Planning a future trip</option>
                     <option value="Weekend window">Weekend window</option>
                     <option value="Long stay">Long stay</option>
                     <option value="Open-ended wandering">Open-ended wandering</option>
+                    <option value="Sprint today">Sprint today</option>
+                    <option value="Planning window">Planning window</option>
+                    <option value="Low-energy mode">Low-energy mode</option>
+                    <option value="Exploration mode">Exploration mode</option>
                   </select>
                 </label>
 
                 <label>
-                  Whimsy appetite
+                  <span id="sideQuestWhimsyLabel">Novelty appetite</span>
                   <input name="whimsy" type="range" min="1" max="100" value="64" />
                   <output data-output-for="whimsy">64</output>
                 </label>
@@ -550,35 +515,42 @@
                 <button type="button" data-value="Social">Social</button>
                 <button type="button" data-value="Budget">Budget</button>
                 <button type="button" data-value="Accessibility">Accessibility</button>
+                <button type="button" data-value="Proof">Proof</button>
+                <button type="button" data-value="Learning">Learning</button>
+                <button type="button" data-value="Outreach">Outreach</button>
+                <button type="button" data-value="Recovery">Recovery</button>
+                <button type="button" data-value="Admin">Admin</button>
+                <button type="button" data-value="Creative">Creative</button>
               </div>
 
               <div class="travel-details">
                 <label>
-                  What do you need this trip to handle?
+                  <span id="sideQuestNeedsLabel">What should this side quest handle?</span>
                   <textarea
                     name="travelNeedsText"
                     rows="3"
-                    placeholder="Vegetarian food, safe late-night transit, cafes to work from, low walking days."
+                    placeholder="Constraints, needs, friction, resources, or non-negotiables."
                   ></textarea>
                 </label>
 
                 <label>
-                  What do you want or feel curious about?
+                  <span id="sideQuestWantsLabel">What would make it worthwhile?</span>
                   <textarea
                     name="travelWantsText"
                     rows="3"
-                    placeholder="Street markets, indie bookstores, waterfront walks, live jazz, architecture."
+                    placeholder="Curiosities, outcomes, people, places, artifacts, or wins."
                   ></textarea>
                 </label>
 
                 <label>
-                  Daily events or local clues
+                  <span id="sideQuestPromptLabel">Prompt or live context</span>
                   <textarea
                     name="travelEventsSeed"
                     rows="3"
-                    placeholder="Paste today's events, festival notes, neighborhood tips, weather notes, or recommendations."
+                    placeholder="Paste mode-specific clues: events, issue notes, job links, learning gaps, recovery constraints, or social openings."
                   ></textarea>
                 </label>
+              </div>
               </div>
             </section>
 
@@ -684,11 +656,12 @@
                 <label>
                   Channel
                   <select id="nudgeChannel">
-                    <option value="browser">Browser while open</option>
-                    <option value="chatgpt">ChatGPT Task prompt</option>
-                    <option value="telegram">Telegram bot payload</option>
-                  </select>
-                </label>
+                  <option value="browser">Browser while open</option>
+                  <option value="chatgpt">ChatGPT Task prompt</option>
+                  <option value="notion">Notion diary TODO</option>
+                  <option value="telegram">Telegram bot payload</option>
+                </select>
+              </label>
               </div>
               <ol id="dailyTodoList" class="daily-todo-list"></ol>
               <div class="nudge-actions">
@@ -698,6 +671,9 @@
                 </button>
                 <button class="secondary-button compact-button" id="copyChatGptTask" type="button">
                   Copy ChatGPT Task
+                </button>
+                <button class="secondary-button compact-button" id="copyNotionNudge" type="button">
+                  Copy Notion diary
                 </button>
                 <button class="secondary-button compact-button" id="copyTelegramNudge" type="button">
                   Copy Telegram payload

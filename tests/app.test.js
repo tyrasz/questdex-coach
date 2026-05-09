@@ -224,7 +224,7 @@ test("ChatGPT source seed maps JSON into RPG profile fields", () => {
   assert.ok(seed.signals.some((signal) => signal.title === "Inventory"));
 });
 
-test("GitHub source seed turns repos into proof-of-work signals", () => {
+test("GitHub source seed favors recent work and starred repos", () => {
   const app = loadAppContext();
   const seed = app.buildGithubSourceSeed(
     {
@@ -233,41 +233,67 @@ test("GitHub source seed turns repos into proof-of-work signals", () => {
       location: "Singapore",
       bio: "Building AI travel tools and local discovery systems.",
     },
-    [
-      {
-        name: "questdex-coach",
-        description: "AI travel RPG coach",
-        language: "JavaScript",
-        topics: ["ai", "travel", "coach"],
-        stargazers_count: 8,
-        forks_count: 2,
-        fork: false,
-        archived: false,
-        pushed_at: "2026-05-01T00:00:00.000Z",
-      },
-      {
-        name: "map-notes",
-        description: "Local discovery notebook",
-        language: "TypeScript",
-        topics: ["maps", "travel"],
-        stargazers_count: 3,
-        forks_count: 1,
-        fork: false,
-        archived: false,
-        pushed_at: "2026-04-20T00:00:00.000Z",
-      },
-      {
-        name: "old-fork",
-        description: "Forked dependency",
-        language: "Ruby",
-        topics: [],
-        stargazers_count: 0,
-        forks_count: 0,
-        fork: true,
-        archived: false,
-        pushed_at: "2025-01-01T00:00:00.000Z",
-      },
-    ],
+    {
+      repos: [
+        {
+          name: "questdex-coach",
+          full_name: "nadia/questdex-coach",
+          description: "AI travel RPG coach",
+          language: "JavaScript",
+          topics: ["ai", "travel", "coach"],
+          stargazers_count: 8,
+          forks_count: 2,
+          fork: false,
+          archived: false,
+          pushed_at: "2026-05-01T00:00:00.000Z",
+        },
+        {
+          name: "map-notes",
+          full_name: "nadia/map-notes",
+          description: "Local discovery notebook",
+          language: "TypeScript",
+          topics: ["maps", "travel"],
+          stargazers_count: 3,
+          forks_count: 1,
+          fork: false,
+          archived: false,
+          pushed_at: "2026-04-20T00:00:00.000Z",
+        },
+        {
+          name: "old-fork",
+          full_name: "nadia/old-fork",
+          description: "Forked dependency",
+          language: "Ruby",
+          topics: [],
+          stargazers_count: 0,
+          forks_count: 0,
+          fork: true,
+          archived: false,
+          pushed_at: "2025-01-01T00:00:00.000Z",
+        },
+      ],
+      starredRepos: [
+        {
+          name: "agent-starter",
+          full_name: "tools/agent-starter",
+          description: "Agent workflow starter kit",
+          language: "TypeScript",
+          topics: ["ai", "agents"],
+          stargazers_count: 21,
+          forks_count: 4,
+          fork: false,
+          archived: false,
+          pushed_at: "2026-04-28T00:00:00.000Z",
+        },
+      ],
+      events: [
+        {
+          type: "PushEvent",
+          repo: { name: "nadia/questdex-coach" },
+          created_at: "2026-05-08T00:00:00.000Z",
+        },
+      ],
+    },
     new Date("2026-05-09T00:00:00.000Z"),
   );
 
@@ -275,12 +301,16 @@ test("GitHub source seed turns repos into proof-of-work signals", () => {
   assert.equal(seed.fields.displayName, "Nadia");
   assert.equal(seed.fields.worldLocation, "Singapore");
   assert.equal(seed.fields.worldIndustry, "AI tools and agentic software");
-  assert.match(seed.fields.worldOpportunities, /3 public repos/);
-  assert.match(seed.fields.inventoryText, /JavaScript projects/);
+  assert.match(seed.fields.worldOpportunities, /2 repos worked on in the last 30 days/);
+  assert.match(seed.fields.worldOpportunities, /1 starred repos analyzed/);
+  assert.match(seed.fields.inventoryText, /JavaScript signal/);
   assert.match(seed.seedText, /questdex-coach/);
+  assert.match(seed.seedText, /agent-starter/);
   assert.ok(seed.priorities.includes("Startup"));
   assert.ok(seed.buildGoals.includes("Adventure"));
-  assert.ok(seed.signals.some((signal) => signal.title === "Top languages"));
+  assert.equal(seed.meta.recentRepoCount, 2);
+  assert.equal(seed.meta.starredRepoCount, 1);
+  assert.ok(seed.signals.some((signal) => signal.title === "Recent work"));
 });
 
 test("session capture stores user-approved browsing metadata and blocks sensitive pages", () => {
@@ -398,6 +428,35 @@ test("buildSideQuests turns travel wants and events into side quests", () => {
   assert.match(bodyText, /Seoul, South Korea/);
 });
 
+test("side quest pack can be turned off or generalized beyond travel", () => {
+  const app = loadAppContext();
+  const offProfile = app.buildProfile(
+    baseSurvey({
+      sideQuestMode: "Off",
+    }),
+    "",
+  );
+  const projectProfile = app.buildProfile(
+    baseSurvey({
+      sideQuestMode: "Project",
+      travelDestination: "QuestDex launch",
+      travelMode: "Sprint today",
+      travelNeedsText: "Needs one visible proof and one user feedback loop.",
+      travelWantsText: "A polished demo story and less manual setup.",
+      travelEventsSeed: "Open issue: Notion daily TODO export.",
+    }),
+    "",
+  );
+  const projectSideQuests = app.buildSideQuests(projectProfile);
+
+  assert.equal(offProfile.travelContext.active, false);
+  assert.equal(app.buildSideQuests(offProfile).length, 0);
+  assert.equal(projectProfile.travelContext.sideQuestMode, "Project");
+  assert.ok(projectSideQuests.some((quest) => quest.title === "Context hook"));
+  assert.ok(projectSideQuests.some((quest) => quest.title === "Proof shard"));
+  assert.match(projectSideQuests.map((quest) => quest.body).join(" "), /QuestDex launch/);
+});
+
 test("daily nudge builds a short useful TODO route", () => {
   const app = loadAppContext();
   const profile = app.buildProfile(
@@ -435,6 +494,22 @@ test("daily nudge payloads support ChatGPT Tasks and Telegram", () => {
   assert.match(chatGptPayload, /QuestDex daily route/);
   assert.match(telegramPayload, /Reply done, stuck, or reroll/);
   assert.match(telegramPayload, /1\. \[/);
+});
+
+test("daily nudge payload supports Notion diary checkboxes", () => {
+  const app = loadAppContext();
+  const profile = app.buildProfile(baseSurvey(), "");
+  const nudge = app.buildDailyNudge(profile, app.buildQuests(profile), app.buildSideQuests(profile), {
+    time: "09:15",
+    tone: "Warm and direct",
+  }, new Date("2026-05-09T08:00:00"));
+  const notionPayload = app.buildNudgeChannelPayload(nudge, "notion");
+
+  assert.match(notionPayload, /# Mira, today's QuestDex route/);
+  assert.match(notionPayload, /## Daily TODO/);
+  assert.match(notionPayload, /- \[ \] Main:/);
+  assert.match(notionPayload, /## Diary Log/);
+  assert.match(notionPayload, /What should tomorrow's route remember/);
 });
 
 test("coach reply recognizes travel and side-quest prompts", () => {
@@ -526,7 +601,7 @@ test("legacy Soul Capsules are upgraded with stable RPG fields", () => {
   assert.ok(upgraded.profile.skillTree.length > 0);
   assert.equal(upgraded.profile.evolutionPath[0].stage, "Current form");
   assert.ok(upgraded.quests.length > 0);
-  assert.ok(upgraded.sideQuests.length > 0);
+  assert.equal(upgraded.sideQuests.length, 0);
   assert.ok(upgraded.buildGoals.includes("Freedom"));
 });
 

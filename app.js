@@ -21,7 +21,23 @@ const buildGoalOptions = [
   "Status",
   "Creativity",
 ];
-const travelNeedOptions = ["Food", "Culture", "Nature", "Events", "Quiet", "Social", "Budget", "Accessibility"];
+const travelNeedOptions = [
+  "Food",
+  "Culture",
+  "Nature",
+  "Events",
+  "Quiet",
+  "Social",
+  "Budget",
+  "Accessibility",
+  "Proof",
+  "Learning",
+  "Outreach",
+  "Recovery",
+  "Admin",
+  "Creative",
+];
+const sideQuestModes = ["Off", "Travel", "Project", "Career", "Learning", "Wellness", "Social", "Creative"];
 const lifeStageOptions = [
   "Student",
   "Early-career builder",
@@ -268,6 +284,208 @@ const fallbackSideQuests = [
   },
 ];
 
+const sideQuestModePrompts = {
+  Off: {
+    badge: "Off by default",
+    title: "Side quest pack",
+    focus: "Focus area",
+    pace: "Quest pace",
+    whimsy: "Novelty appetite",
+    needs: "What should this side quest handle?",
+    wants: "What would make it worthwhile?",
+    prompt: "Prompt or live context",
+    focusPlaceholder: "QuestDex launch; interview prep; writing habit",
+    needsPlaceholder: "Constraints, needs, friction, resources, or non-negotiables.",
+    wantsPlaceholder: "Curiosities, outcomes, people, artifacts, or wins.",
+    promptPlaceholder: "Paste mode-specific clues: issue notes, links, learning gaps, recovery constraints, or social openings.",
+  },
+  Travel: {
+    badge: "Destination-aware",
+    title: "Travel quest radar",
+    focus: "Destination",
+    pace: "Trip mode",
+    whimsy: "Whimsy appetite",
+    needs: "What do you need this trip to handle?",
+    wants: "What do you want or feel curious about?",
+    prompt: "Daily events or local clues",
+    focusPlaceholder: "Seoul, South Korea",
+    needsPlaceholder: "Vegetarian food, safe late-night transit, cafes to work from, low walking days.",
+    wantsPlaceholder: "Street markets, indie bookstores, waterfront walks, live jazz, architecture.",
+    promptPlaceholder: "Paste today's events, festival notes, neighborhood tips, weather notes, or recommendations.",
+  },
+  Project: {
+    badge: "Build-aware",
+    title: "Project side quests",
+    focus: "Project or repo",
+    pace: "Sprint mode",
+    whimsy: "Experiment appetite",
+    needs: "What does this project need to handle?",
+    wants: "What would make the project feel alive?",
+    prompt: "Open issues, user clues, or demo constraints",
+    focusPlaceholder: "QuestDex Coach, onboarding flow, Notion integration",
+    needsPlaceholder: "Bug risk, missing proof, user confusion, demo deadline, unclear scope.",
+    wantsPlaceholder: "Aha moment, sharper README, prettier dashboard, one user conversation.",
+    promptPlaceholder: "Paste issues, TODOs, PR notes, feedback, or the next uncomfortable question.",
+  },
+  Career: {
+    badge: "Option-aware",
+    title: "Career side quests",
+    focus: "Role, company, or transition",
+    pace: "Search mode",
+    whimsy: "Serendipity appetite",
+    needs: "What does this career move need to handle?",
+    wants: "What would make the path worthwhile?",
+    prompt: "Roles, contacts, interview loops, or market clues",
+    focusPlaceholder: "AI product role, founder path, developer relations",
+    needsPlaceholder: "Portfolio gap, referral need, interview prep, confidence, salary target.",
+    wantsPlaceholder: "Better team, more autonomy, stronger learning curve, meaningful product.",
+    promptPlaceholder: "Paste job links, people to message, interview notes, or open questions.",
+  },
+  Learning: {
+    badge: "Skill-aware",
+    title: "Learning side quests",
+    focus: "Skill or topic",
+    pace: "Study mode",
+    whimsy: "Curiosity appetite",
+    needs: "What is blocking the learning loop?",
+    wants: "What would make this topic stick?",
+    prompt: "Docs, concepts, gaps, or practice clues",
+    focusPlaceholder: "Manifest V3, OAuth, Solidity testing, product analytics",
+    needsPlaceholder: "Confusing docs, missing examples, weak recall, no practice problem.",
+    wantsPlaceholder: "A useful mental model, small demo, teach-back, reusable notes.",
+    promptPlaceholder: "Paste docs, snippets, errors, concepts, or a practice target.",
+  },
+  Wellness: {
+    badge: "Recovery-aware",
+    title: "Wellness side quests",
+    focus: "Energy or recovery area",
+    pace: "Care mode",
+    whimsy: "Gentleness appetite",
+    needs: "What does your body or mind need handled?",
+    wants: "What would make today feel steadier?",
+    prompt: "Energy clues, schedule pressure, or recovery constraints",
+    focusPlaceholder: "Sleep reset, low-energy day, post-travel recovery",
+    needsPlaceholder: "Food, rest, movement, low-noise time, fewer decisions, medical caution.",
+    wantsPlaceholder: "Calmer evening, walkable routine, earlier shutdown, reduced pressure.",
+    promptPlaceholder: "Paste schedule constraints, energy notes, or recovery cues.",
+  },
+  Social: {
+    badge: "Connection-aware",
+    title: "Social side quests",
+    focus: "Person, group, or network",
+    pace: "Connection mode",
+    whimsy: "Warmth appetite",
+    needs: "What does this connection need to handle?",
+    wants: "What would make the interaction meaningful?",
+    prompt: "People, context, or conversation openings",
+    focusPlaceholder: "Mentors, old friends, potential users, local community",
+    needsPlaceholder: "Awkward re-entry, clear ask, low-pressure check-in, intro request.",
+    wantsPlaceholder: "Trust, useful feedback, shared curiosity, a clean next step.",
+    promptPlaceholder: "Paste names, social contexts, or a message draft.",
+  },
+  Creative: {
+    badge: "Taste-aware",
+    title: "Creative side quests",
+    focus: "Medium or artifact",
+    pace: "Making mode",
+    whimsy: "Play appetite",
+    needs: "What does this creative loop need to handle?",
+    wants: "What would make the artifact interesting?",
+    prompt: "References, constraints, or inspiration",
+    focusPlaceholder: "Landing copy, visual system, demo story, music sketch",
+    needsPlaceholder: "Blank page, too many references, weak taste, no deadline.",
+    wantsPlaceholder: "A memorable phrase, visual direction, one weird but useful angle.",
+    promptPlaceholder: "Paste references, constraints, audience notes, or scraps.",
+  },
+};
+
+const sideQuestModeTemplates = {
+  Project: [
+    {
+      type: "Proof",
+      title: "Proof shard",
+      body: "Ship one visible slice of {focus}: a commit, screenshot, demo note, issue, or user-facing improvement.",
+      reward: "+3 Reputation, +2 Focus",
+    },
+    {
+      type: "User",
+      title: "One sharp question",
+      body: "Turn the current project uncertainty into one question you can ask a real user or reviewer today.",
+      reward: "+3 Clarity, +2 Social",
+    },
+  ],
+  Career: [
+    {
+      type: "Option",
+      title: "Opportunity scout",
+      body: "Find one live option for {focus}, then write why it is attractive and what proof it would require.",
+      reward: "+3 Strategy",
+    },
+    {
+      type: "Reach",
+      title: "Warm path",
+      body: "Identify one person, community, or artifact that could make the next career step less abstract.",
+      reward: "+3 Social, +2 Luck",
+    },
+  ],
+  Learning: [
+    {
+      type: "Skill",
+      title: "Teach-back node",
+      body: "Explain one part of {focus} in 10 lines from memory, then patch only the most important gap.",
+      reward: "+4 Intelligence",
+    },
+    {
+      type: "Practice",
+      title: "Tiny lab",
+      body: "Create the smallest runnable example or note that proves you understand the current concept.",
+      reward: "+3 Focus, +2 Mastery",
+    },
+  ],
+  Wellness: [
+    {
+      type: "Recovery",
+      title: "Energy floor",
+      body: "Choose the lowest-friction stabilizer for {focus}: water, food, walk, shower, stretch, or an earlier shutdown.",
+      reward: "+4 Constitution",
+    },
+    {
+      type: "Boundary",
+      title: "Pressure release",
+      body: "Remove one optional pressure source from the day so recovery has room to work.",
+      reward: "+3 Peace",
+    },
+  ],
+  Social: [
+    {
+      type: "Connection",
+      title: "Warm opening",
+      body: "Send one short message related to {focus} with a clear, low-pressure reason for reaching out.",
+      reward: "+3 Charisma",
+    },
+    {
+      type: "Listen",
+      title: "Better question",
+      body: "Prepare one question that helps the other person tell you something specific, not generic.",
+      reward: "+3 Wisdom, +2 Social",
+    },
+  ],
+  Creative: [
+    {
+      type: "Draft",
+      title: "Ugly first artifact",
+      body: "Make the smallest imperfect version of {focus}. No polishing until something exists.",
+      reward: "+4 Creativity",
+    },
+    {
+      type: "Taste",
+      title: "Reference triad",
+      body: "Collect three references and write one thing to borrow from each.",
+      reward: "+3 Taste, +2 Focus",
+    },
+  ],
+};
+
 const demoSeed = `goals:
 - ship a web MVP for a hackathon
 - talk to 5 potential users
@@ -354,18 +572,21 @@ const demoChatGptSeed = JSON.stringify(
 const form = document.querySelector("#intakeForm");
 const seedFile = document.querySelector("#seedFile");
 const seedPreview = document.querySelector("#seedPreview");
-const chatGptSeedInput = document.querySelector("#chatgptSeedInput");
-const copyChatGptPromptButton = document.querySelector("#copyChatGptPrompt");
-const loadChatGptExampleButton = document.querySelector("#loadChatGptExample");
-const applyChatGptSeedButton = document.querySelector("#applyChatGptSeed");
-const chatGptSeedStatus = document.querySelector("#chatgptSeedStatus");
 const githubUsernameInput = document.querySelector("#githubUsername");
 const analyzeGithubButton = document.querySelector("#analyzeGithub");
 const githubImportStatus = document.querySelector("#githubImportStatus");
 const githubRepoHighlights = document.querySelector("#githubRepoHighlights");
-const githubOAuthButton = document.querySelector("#githubOAuthButton");
-const githubOAuthStatus = document.querySelector("#githubOAuthStatus");
 const sourceSignalBoard = document.querySelector("#sourceSignalBoard");
+const sideQuestModeSelect = document.querySelector("#sideQuestMode");
+const sideQuestConfig = document.querySelector("#sideQuestConfig");
+const sideQuestModeBadge = document.querySelector("#sideQuestModeBadge");
+const sideQuestSetupTitle = document.querySelector("#sideQuestSetupTitle");
+const sideQuestFocusLabel = document.querySelector("#sideQuestFocusLabel");
+const sideQuestPaceLabel = document.querySelector("#sideQuestPaceLabel");
+const sideQuestWhimsyLabel = document.querySelector("#sideQuestWhimsyLabel");
+const sideQuestNeedsLabel = document.querySelector("#sideQuestNeedsLabel");
+const sideQuestWantsLabel = document.querySelector("#sideQuestWantsLabel");
+const sideQuestPromptLabel = document.querySelector("#sideQuestPromptLabel");
 const captureDurationSelect = document.querySelector("#captureDuration");
 const captureModeSelect = document.querySelector("#captureMode");
 const captureStoreUrlCheckbox = document.querySelector("#captureStoreUrl");
@@ -396,6 +617,7 @@ const nudgeChannelSelect = document.querySelector("#nudgeChannel");
 const refreshNudgeButton = document.querySelector("#refreshNudge");
 const enableBrowserNudgeButton = document.querySelector("#enableBrowserNudge");
 const copyChatGptTaskButton = document.querySelector("#copyChatGptTask");
+const copyNotionNudgeButton = document.querySelector("#copyNotionNudge");
 const copyTelegramNudgeButton = document.querySelector("#copyTelegramNudge");
 const nudgeStatus = document.querySelector("#nudgeStatus");
 const nudgePayloadPreview = document.querySelector("#nudgePayloadPreview");
@@ -425,11 +647,8 @@ function init() {
   setupChips();
 
   seedFile.addEventListener("change", handleSeedFile);
-  copyChatGptPromptButton.addEventListener("click", copyChatGptPrompt);
-  loadChatGptExampleButton.addEventListener("click", loadChatGptExample);
-  applyChatGptSeedButton.addEventListener("click", applyChatGptSeed);
   analyzeGithubButton.addEventListener("click", analyzeGithubSource);
-  githubOAuthButton.addEventListener("click", explainGithubOAuthPath);
+  sideQuestModeSelect.addEventListener("change", updateSideQuestModeUi);
   startCaptureSessionButton.addEventListener("click", startCaptureSessionFromUi);
   pauseCaptureSessionButton.addEventListener("click", toggleCaptureSessionPaused);
   endCaptureSessionButton.addEventListener("click", endCaptureSessionFromUi);
@@ -444,6 +663,7 @@ function init() {
   refreshNudgeButton.addEventListener("click", refreshDailyNudge);
   enableBrowserNudgeButton.addEventListener("click", enableBrowserNudge);
   copyChatGptTaskButton.addEventListener("click", copyChatGptTaskPrompt);
+  copyNotionNudgeButton.addEventListener("click", copyNotionNudgePayload);
   copyTelegramNudgeButton.addEventListener("click", copyTelegramNudgePayload);
   nudgeTimeInput.addEventListener("change", updateNudgeConfigFromControls);
   nudgeToneSelect.addEventListener("change", updateNudgeConfigFromControls);
@@ -460,6 +680,7 @@ function init() {
   exportEncryptedSoulButton.addEventListener("click", exportEncryptedSoulCapsule);
   exportSoulAnchorButton.addEventListener("click", exportSoulAnchor);
   importEncryptedSoulFile.addEventListener("change", importEncryptedSoulCapsule);
+  updateSideQuestModeUi();
   restoreSessionCapture();
   renderSessionCapturePanel();
   hydrateNudgeControls();
@@ -530,6 +751,7 @@ function loadDemoSeed() {
   form.elements.evolutionConditions.value = "Needs user conversations, a clearer memory model, a testnet anchor, and one polished demo story.";
   form.elements.partyText.value = "Hackathon teammates, potential users, mentors, online builders, future recovery partners.";
   form.elements.inventoryText.value = "Static web app, GitHub repo, Pages deployment, tests, Soul Capsule export, product narrative.";
+  form.elements.sideQuestMode.value = "Travel";
   form.elements.travelDestination.value = "Singapore";
   form.elements.travelNeedsText.value = "Reliable meals, easy transit, a calm place to reset, and low-friction evening options.";
   form.elements.travelWantsText.value = "Hawker food, design shops, waterfront walks, and one unexpected neighborhood.";
@@ -538,6 +760,7 @@ function loadDemoSeed() {
   document.querySelector('[data-output-for="whimsy"]').textContent = "72";
   document.querySelector('[data-output-for="whimsy"]').value = "72";
   state.uploadedSeed = "";
+  updateSideQuestModeUi();
   renderSeedPreview(demoSeed, "Demo seed");
 }
 
@@ -594,33 +817,28 @@ async function analyzeGithubSource() {
     return;
   }
 
-  setSourceStatus(githubImportStatus, "Scanning public repos...");
+  setSourceStatus(githubImportStatus, "Scanning recent public activity and starred repos...");
   analyzeGithubButton.disabled = true;
 
   try {
-    const [user, repos] = await Promise.all([
+    const [user, repos, starredRepos, events] = await Promise.all([
       fetchGithubJson(`https://api.github.com/users/${encodeURIComponent(username)}`),
-      fetchGithubJson(`https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=50&sort=updated`),
+      fetchGithubJson(`https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=50&sort=pushed`),
+      fetchGithubJson(`https://api.github.com/users/${encodeURIComponent(username)}/starred?per_page=50`),
+      fetchGithubJson(`https://api.github.com/users/${encodeURIComponent(username)}/events/public?per_page=100`),
     ]);
-    const sourceSeed = buildGithubSourceSeed(user, repos);
+    const sourceSeed = buildGithubSourceSeed(user, { repos, starredRepos, events });
     applySourceSeedToForm(sourceSeed);
-    renderGithubHighlights(sourceSeed, repos);
+    renderGithubHighlights(sourceSeed);
     setSourceStatus(
       githubImportStatus,
-      `Analyzed ${repos.length} public repos. Profile fields were updated from real proof-of-work.`,
+      `Analyzed ${sourceSeed.meta.recentRepoCount} recent work repo${sourceSeed.meta.recentRepoCount === 1 ? "" : "s"} and ${sourceSeed.meta.starredRepoCount} starred repo${sourceSeed.meta.starredRepoCount === 1 ? "" : "s"}.`,
     );
   } catch (error) {
     setSourceStatus(githubImportStatus, error.message || "Unable to analyze this GitHub profile.", true);
   } finally {
     analyzeGithubButton.disabled = false;
   }
-}
-
-function explainGithubOAuthPath() {
-  setSourceStatus(
-    githubOAuthStatus,
-    "Private repo OAuth is ready for a secure callback layer. This static demo will not request or store GitHub tokens in the browser.",
-  );
 }
 
 async function fetchGithubJson(url) {
@@ -705,38 +923,45 @@ function buildChatGptSourceSeed(rawInput) {
   };
 }
 
-function buildGithubSourceSeed(user, repos, now = new Date()) {
+function buildGithubSourceSeed(user, githubData, now = new Date()) {
+  const repos = Array.isArray(githubData) ? githubData : githubData?.repos;
   if (!Array.isArray(repos)) throw new Error("GitHub repos response was not readable.");
 
+  const starredRepos = Array.isArray(githubData?.starredRepos) ? githubData.starredRepos : [];
+  const events = Array.isArray(githubData?.events) ? githubData.events : [];
   const usableRepos = repos.filter((repo) => repo && !repo.archived).slice(0, 50);
-  const originalRepos = usableRepos.filter((repo) => !repo.fork);
-  const languages = topCounts(usableRepos.map((repo) => repo.language).filter(Boolean), 6);
-  const topics = topCounts(usableRepos.flatMap((repo) => repo.topics || []), 8);
-  const totalStars = usableRepos.reduce((sum, repo) => sum + Number(repo.stargazers_count || 0), 0);
-  const totalForks = usableRepos.reduce((sum, repo) => sum + Number(repo.forks_count || 0), 0);
-  const recentRepos = usableRepos.filter((repo) => daysBetween(now, repo.pushed_at || repo.updated_at) <= 180);
-  const topRepos = [...usableRepos]
-    .sort((a, b) => Number(b.stargazers_count || 0) - Number(a.stargazers_count || 0))
-    .slice(0, 5);
-  const activeRepos = recentRepos.slice(0, 5);
-  const repoNames = uniqueTextItems([...topRepos, ...activeRepos].map((repo) => repo.name)).slice(0, 6);
-  const repoDescriptions = usableRepos
+  const usableStarredRepos = starredRepos.filter((repo) => repo && !repo.archived).slice(0, 50);
+  const recentEventRepoNames = recentGithubEventRepoNames(events, now);
+  const recentRepos = usableRepos.filter((repo) => {
+    const name = repo.full_name || `${user?.login || ""}/${repo.name || ""}`;
+    return recentEventRepoNames.has(name) || daysBetween(now, repo.pushed_at || repo.updated_at) <= 30;
+  });
+  const signalRepos = uniqueRepos([...recentRepos, ...usableStarredRepos]).slice(0, 60);
+  const reposForInference = signalRepos.length ? signalRepos : usableRepos.slice(0, 12);
+  const languages = topCounts(reposForInference.map((repo) => repo.language).filter(Boolean), 6);
+  const topics = topCounts(reposForInference.flatMap((repo) => repo.topics || []), 8);
+  const totalStars = reposForInference.reduce((sum, repo) => sum + Number(repo.stargazers_count || 0), 0);
+  const totalForks = reposForInference.reduce((sum, repo) => sum + Number(repo.forks_count || 0), 0);
+  const recentRepoNames = recentRepos.map((repo) => repo.name).filter(Boolean);
+  const starredRepoNames = usableStarredRepos.map((repo) => repo.name).filter(Boolean);
+  const repoNames = uniqueTextItems([...recentRepoNames, ...starredRepoNames]).slice(0, 8);
+  const repoDescriptions = reposForInference
     .map((repo) => [repo.name, repo.description, repo.language, ...(repo.topics || [])].filter(Boolean).join(" "))
     .join("\n");
   const repoText = `${user?.bio || ""} ${repoDescriptions}`.toLowerCase();
   const languageNames = languages.map(([language]) => language);
   const topicNames = topics.map(([topic]) => topic);
-  const productSignals = uniqueTextItems([...topicNames, ...languageNames]).slice(0, 8);
+  const productSignals = uniqueTextItems([...topicNames, ...languageNames, ...repoNames]).slice(0, 10);
   const priorities = unique([
     "Career",
-    usableRepos.length >= 3 ? "Startup" : "",
+    recentRepos.length || repoText.includes("mvp") || repoText.includes("startup") ? "Startup" : "",
     repoText.includes("design") || repoText.includes("creative") ? "Creativity" : "",
-    repoText.includes("learn") || repoText.includes("research") ? "Study" : "",
+    repoText.includes("learn") || repoText.includes("docs") || repoText.includes("research") ? "Study" : "",
   ]).slice(0, 4);
   const buildGoals = unique([
     "Mastery",
-    "Status",
-    totalStars > 0 || totalForks > 0 ? "Service" : "",
+    recentRepos.length ? "Status" : "",
+    usableStarredRepos.length || totalStars > 0 || totalForks > 0 ? "Service" : "",
     repoText.includes("travel") || repoText.includes("map") ? "Adventure" : "",
     repoText.includes("art") || repoText.includes("design") ? "Creativity" : "",
   ]).slice(0, 5);
@@ -744,49 +969,60 @@ function buildGithubSourceSeed(user, repos, now = new Date()) {
     displayName: user?.name || user?.login || "",
     worldLocation: user?.location || "",
     worldIndustry: inferGithubIndustry(productSignals, repoText),
-    worldCulture: "Open-source, public proof-of-work, asynchronous builder network",
+    worldCulture: "Recent GitHub motion, public proof-of-work, starred-tool taste, asynchronous builder network",
     worldOpportunities: listText(
       uniqueTextItems([
-        `${usableRepos.length} public repos`,
-        `${originalRepos.length} original repos`,
-        `${recentRepos.length} recently updated repos`,
-        totalStars ? `${totalStars} public stars` : "",
-        languageNames.length ? `${languageNames.slice(0, 3).join(", ")} experience` : "",
+        `${recentRepos.length} repos worked on in the last 30 days`,
+        `${usableStarredRepos.length} starred repos analyzed`,
+        recentRepoNames.length ? `Recent work: ${recentRepoNames.slice(0, 4).join(", ")}` : "",
+        starredRepoNames.length ? `Starred taste: ${starredRepoNames.slice(0, 4).join(", ")}` : "",
+        languageNames.length ? `${languageNames.slice(0, 3).join(", ")} current signal` : "",
       ]),
     ),
     inventoryText: listText(
       uniqueTextItems([
-        "GitHub portfolio",
-        ...languageNames.map((language) => `${language} projects`),
+        "GitHub activity graph",
+        ...languageNames.map((language) => `${language} signal`),
         ...repoNames.map((name) => `${name} repo`),
-      ]).slice(0, 8),
+      ]).slice(0, 9),
     ),
     partyText: listText(uniqueTextItems(["Open-source users", "repo collaborators", "technical reviewers"])),
     evolutionConditions: listText(
       uniqueTextItems([
-        "Turn the strongest repo into a demo story",
-        "Write one sharper README",
-        "Ask two users what the repo should do next",
+        recentRepos.length ? "Turn this month's most active repo into a demo story" : "",
+        usableStarredRepos.length ? "Borrow one pattern from a recently starred repo" : "",
+        "Ask two users what the active repo should do next",
       ]),
     ),
   });
+  const meta = {
+    recentRepoCount: recentRepos.length,
+    starredRepoCount: usableStarredRepos.length,
+    eventRepoCount: recentEventRepoNames.size,
+    signalRepoCount: reposForInference.length,
+    highlightRepos: repoNames.slice(0, 5),
+  };
 
   return {
     source: "github",
-    label: `${user?.login || "GitHub"} repo scan`,
-    confidence: clamp((usableRepos.length ? 52 : 28) + Math.min(usableRepos.length, 12) * 3 + Math.min(totalStars, 40), 30, 94) / 100,
+    label: `${user?.login || "GitHub"} recent GitHub signal`,
+    confidence: clamp(36 + Math.min(recentRepos.length, 8) * 7 + Math.min(usableStarredRepos.length, 12) * 2 + Math.min(totalStars, 20), 32, 94) / 100,
     fields,
     priorities,
     buildGoals,
     travelNeeds: [],
-    seedText: sourceSeedText("GitHub", githubSeedSummary(user, usableRepos, languages, topics, recentRepos, totalStars)),
+    seedText: sourceSeedText(
+      "GitHub",
+      githubSeedSummary(user, reposForInference, languages, topics, recentRepos, usableStarredRepos, totalStars),
+    ),
     signals: [
-      { title: "Repos", value: `${usableRepos.length} public`, detail: `${originalRepos.length} original` },
-      { title: "Top languages", value: languageNames.slice(0, 3).join(", ") || "Unspecified", detail: "Skill inventory" },
-      { title: "Recent motion", value: `${recentRepos.length} active`, detail: "Updated within 180 days" },
-      { title: "Reputation", value: `${totalStars} stars`, detail: `${totalForks} forks` },
+      { title: "Recent work", value: `${recentRepos.length} repo${recentRepos.length === 1 ? "" : "s"}`, detail: "Last 30 days" },
+      { title: "Starred taste", value: `${usableStarredRepos.length} repo${usableStarredRepos.length === 1 ? "" : "s"}`, detail: "Public starred repos" },
+      { title: "Current languages", value: languageNames.slice(0, 3).join(", ") || "Unspecified", detail: "From recent + starred" },
+      { title: "Momentum", value: repoNames.slice(0, 2).join(", ") || "Low public activity", detail: "Most relevant repos" },
       { title: "Build hint", value: buildGoals.join(", "), detail: priorities.join(", ") },
     ],
+    meta,
   };
 }
 
@@ -881,9 +1117,11 @@ function renderSourceSignalBoard(sourceSeed) {
   `;
 }
 
-function renderGithubHighlights(sourceSeed, repos) {
+function renderGithubHighlights(sourceSeed, repos = []) {
   if (!githubRepoHighlights) return;
-  const repoNames = repos.slice(0, 4).map((repo) => repo.name);
+  const repoNames = sourceSeed.meta?.highlightRepos?.length
+    ? sourceSeed.meta.highlightRepos
+    : repos.slice(0, 4).map((repo) => repo.name);
   githubRepoHighlights.hidden = false;
   githubRepoHighlights.innerHTML = repoNames
     .map((name) => `<span>${escapeHtml(name)}</span>`)
@@ -895,6 +1133,37 @@ function setSourceStatus(element, message, isError = false) {
   if (!element) return;
   element.textContent = message;
   element.classList.toggle("is-error", isError);
+}
+
+function updateSideQuestModeUi() {
+  const mode = normalizeSideQuestMode(sideQuestModeSelect?.value);
+  const copy = sideQuestModePrompts[mode] || sideQuestModePrompts.Off;
+  if (sideQuestConfig) sideQuestConfig.hidden = mode === "Off";
+  if (sideQuestModeBadge) sideQuestModeBadge.textContent = copy.badge;
+  if (sideQuestSetupTitle) sideQuestSetupTitle.textContent = copy.title;
+  setText(sideQuestFocusLabel, copy.focus);
+  setText(sideQuestPaceLabel, copy.pace);
+  setText(sideQuestWhimsyLabel, copy.whimsy);
+  setText(sideQuestNeedsLabel, copy.needs);
+  setText(sideQuestWantsLabel, copy.wants);
+  setText(sideQuestPromptLabel, copy.prompt);
+  setPlaceholder(form.elements.travelDestination, copy.focusPlaceholder);
+  setPlaceholder(form.elements.travelNeedsText, copy.needsPlaceholder);
+  setPlaceholder(form.elements.travelWantsText, copy.wantsPlaceholder);
+  setPlaceholder(form.elements.travelEventsSeed, copy.promptPlaceholder);
+}
+
+function normalizeSideQuestMode(value) {
+  const mode = String(value || "Off");
+  return sideQuestModes.includes(mode) ? mode : "Off";
+}
+
+function setText(element, value) {
+  if (element) element.textContent = value;
+}
+
+function setPlaceholder(element, value) {
+  if (element) element.placeholder = value;
 }
 
 function startCaptureSessionFromUi() {
@@ -1959,6 +2228,11 @@ function buildProfile(data, seed) {
     data.evolutionConditions || "",
     data.partyText || "",
     data.inventoryText || "",
+    data.sideQuestMode || "",
+    data.travelDestination || "",
+    data.travelNeedsText || "",
+    data.travelWantsText || "",
+    data.travelEventsSeed || "",
   ]
     .join(" ")
     .toLowerCase();
@@ -2277,19 +2551,24 @@ function buildTravelContext(data) {
   const needsText = data.travelNeedsText?.trim() || "";
   const wantsText = data.travelWantsText?.trim() || "";
   const eventsSeed = data.travelEventsSeed?.trim() || "";
-  const combined = `${destination} ${needsText} ${wantsText} ${eventsSeed}`.toLowerCase();
+  const hasSideQuestClues = Boolean(destination || needsText || wantsText || eventsSeed);
+  const sideQuestMode = data.sideQuestMode ? normalizeSideQuestMode(data.sideQuestMode) : hasSideQuestClues ? "Travel" : "Off";
+  const combined = `${sideQuestMode} ${destination} ${needsText} ${wantsText} ${eventsSeed}`.toLowerCase();
   const inferredNeeds = inferTravelNeeds(combined);
   const selectedNeeds = Array.from(state.selectedTravelNeeds);
+  const active = sideQuestMode !== "Off" && Boolean(destination || needsText || wantsText || eventsSeed || selectedNeeds.length);
 
   return {
+    sideQuestMode,
     destination,
+    focus: destination,
     mode: data.travelMode || "On the ground today",
     whimsy: Number(data.whimsy || 50),
     needs: unique([...selectedNeeds, ...inferredNeeds]).slice(0, 6),
     needsText,
     wantsText,
     eventsSeed,
-    active: Boolean(destination || needsText || wantsText || eventsSeed),
+    active,
   };
 }
 
@@ -2303,6 +2582,12 @@ function inferTravelNeeds(text) {
     ["Social", ["meet", "friend", "local", "community", "social", "conversation"]],
     ["Budget", ["cheap", "budget", "free", "affordable", "save"]],
     ["Accessibility", ["accessible", "wheelchair", "stairs", "mobility", "restroom", "walking"]],
+    ["Proof", ["proof", "demo", "ship", "commit", "readme", "artifact", "launch"]],
+    ["Learning", ["learn", "study", "docs", "course", "skill", "practice"]],
+    ["Outreach", ["outreach", "message", "user", "mentor", "customer", "feedback"]],
+    ["Recovery", ["recover", "rest", "sleep", "energy", "burnout", "reset"]],
+    ["Admin", ["admin", "paperwork", "forms", "email", "calendar", "logistics"]],
+    ["Creative", ["creative", "write", "design", "story", "music", "art", "draft"]],
   ];
 
   return checks.filter(([, keywords]) => keywords.some((keyword) => text.includes(keyword))).map(([name]) => name);
@@ -2378,6 +2663,12 @@ function buildQuests(profile) {
 
 function buildSideQuests(profile) {
   const travel = profile.travelContext || {};
+  if (!travel.active || travel.sideQuestMode === "Off") return [];
+
+  if (travel.sideQuestMode && travel.sideQuestMode !== "Travel") {
+    return buildGeneralSideQuests(travel);
+  }
+
   const destination = travel.destination || "your destination";
   const picked = [];
 
@@ -2425,6 +2716,61 @@ function buildSideQuests(profile) {
   }
 
   return uniqueByTitle([...picked, ...fallbackSideQuests]).slice(0, 5);
+}
+
+function buildGeneralSideQuests(sideQuestContext = {}) {
+  const mode = normalizeSideQuestMode(sideQuestContext.sideQuestMode || "Project");
+  const focus = sideQuestContext.focus || sideQuestContext.destination || mode.toLowerCase();
+  const templates = sideQuestModeTemplates[mode] || sideQuestModeTemplates.Project;
+  const picked = templates.map((template) => ({
+    ...template,
+    body: template.body.replace("{focus}", focus),
+  }));
+
+  if (sideQuestContext.needsText) {
+    picked.unshift({
+      type: "Need",
+      title: "Constraint-aware route",
+      body: `For ${focus}, account for "${shorten(sideQuestContext.needsText, 90)}" before choosing the side quest.`,
+      reward: "+3 Safety, +2 Focus",
+    });
+  }
+
+  if (sideQuestContext.wantsText) {
+    picked.unshift({
+      type: "Want",
+      title: "Value match",
+      body: `Make the side quest worthwhile by aiming at "${shorten(sideQuestContext.wantsText, 90)}" in ${focus}.`,
+      reward: "+3 Motivation",
+    });
+  }
+
+  if (sideQuestContext.eventsSeed) {
+    picked.unshift({
+      type: "Live",
+      title: "Context hook",
+      body: `Use this live clue for ${focus}: "${shorten(sideQuestContext.eventsSeed, 110)}" Turn it into one next action.`,
+      reward: "+3 Serendipity, +2 Clarity",
+    });
+  }
+
+  if (sideQuestContext.whimsy >= 70) {
+    picked.push({
+      type: "Experiment",
+      title: "Delight fork",
+      body: `Try one tasteful, low-risk variant of ${focus} that could create a better story or useful surprise.`,
+      reward: "+4 Luck",
+    });
+  } else if (sideQuestContext.whimsy <= 35) {
+    picked.push({
+      type: "Stable",
+      title: "Low-variance rep",
+      body: `Keep ${focus} boring on purpose: one clear action, one finish line, one note about what changed.`,
+      reward: "+3 Consistency",
+    });
+  }
+
+  return uniqueByTitle(picked).slice(0, 5);
 }
 
 function localizeTravelQuest(body, destination, travel) {
@@ -2551,7 +2897,7 @@ function buildDailyNudge(profile, quests = [], sideQuests = [], config = {}, dat
   const stats = profile.humanStats || profile.stats || {};
   const weakStat = Object.entries(stats).sort((a, b) => a[1] - b[1])[0]?.[0] || "Focus";
   const leadQuest = quests[0] || fallbackQuests[0];
-  const sideQuest = sideQuests[0] || fallbackSideQuests[0];
+  const sideQuest = sideQuests[0] || null;
   const recoveryMove =
     Number(stats.Constitution || stats.Energy || 50) < 50
       ? "Do one stabilizer before ambition: water, food, short walk, shower, or sleep plan."
@@ -2578,12 +2924,14 @@ function buildDailyNudge(profile, quests = [], sideQuests = [], config = {}, dat
       body: proofMove,
       reward: "+3 Reputation",
     },
-    {
-      type: "Side",
-      title: sideQuest.title,
-      body: sideQuest.body,
-      reward: sideQuest.reward,
-    },
+    sideQuest
+      ? {
+          type: "Side",
+          title: sideQuest.title,
+          body: sideQuest.body,
+          reward: sideQuest.reward,
+        }
+      : null,
   ]).slice(0, 4);
   const dateLabel = date.toLocaleDateString("en", {
     weekday: "short",
@@ -2630,7 +2978,38 @@ function buildNudgeChannelPayload(nudge, channel = "browser") {
     return `${nudge.title}\n${nudge.summary}\n\n${todoText}\n\nReply done, stuck, or reroll.`;
   }
 
+  if (channel === "notion") {
+    return buildNotionDiaryPayload(nudge);
+  }
+
   return `${nudge.title}: ${nudge.summary}`;
+}
+
+function buildNotionDiaryPayload(nudge) {
+  const checkboxTodos = nudge.todos
+    .map((todo) => `- [ ] ${todo.type}: ${todo.title}\n  ${todo.body}`)
+    .join("\n");
+
+  return `# ${nudge.title}
+
+Date: ${nudge.dateLabel}
+Time: ${nudge.time}
+Profile: ${nudge.profileSummary}
+
+## Daily TODO
+${checkboxTodos}
+
+## Diary Log
+- Started:
+- Progress:
+- Blocked by:
+- Finished:
+
+## Reflection
+- What gave energy?
+- What drained energy?
+- What should tomorrow's route remember?
+`;
 }
 
 function refreshDailyNudge() {
@@ -2676,6 +3055,17 @@ async function copyTelegramNudgePayload() {
   hydrateNudgeControls();
   const nudge = buildDailyNudge(state.profile, state.quests, state.sideQuests, state.nudgeConfig);
   await copyNudgePayload(buildNudgeChannelPayload(nudge, "telegram"), "Telegram nudge payload copied.");
+}
+
+async function copyNotionNudgePayload() {
+  updateNudgeConfigFromControls(false);
+  state.nudgeConfig.channel = "notion";
+  hydrateNudgeControls();
+  const nudge = buildDailyNudge(state.profile, state.quests, state.sideQuests, state.nudgeConfig);
+  await copyNudgePayload(
+    buildNudgeChannelPayload(nudge, "notion"),
+    "Notion diary copied. Paste it into a Notion page for checkboxes and progress notes.",
+  );
 }
 
 async function copyNudgePayload(payload, successMessage) {
@@ -3043,7 +3433,9 @@ function renderDashboard() {
   renderWorld(profile.worldContext);
   renderBuild(profile);
   renderQuests(state.quests);
-  renderSideQuests(state.sideQuests, profile.travelContext);
+  const sideQuestPanel = document.querySelector(".sidequest-panel");
+  if (sideQuestPanel) sideQuestPanel.hidden = !profile.travelContext?.active;
+  if (profile.travelContext?.active) renderSideQuests(state.sideQuests, profile.travelContext);
   renderProgression(profile.skillTree, profile.evolutionPath);
   renderLoadout(profile.party, profile.inventory);
   renderInsights(profile.insights);
@@ -3195,12 +3587,16 @@ function renderQuests(quests) {
 }
 
 function renderSideQuests(sideQuests, travelContext = {}) {
-  const destination = travelContext?.destination || "New country mode";
+  const mode = travelContext?.sideQuestMode || "Travel";
+  const destination = travelContext?.destination || (mode === "Travel" ? "New country mode" : mode);
   const needs = travelContext?.needs?.length ? travelContext.needs.join(", ") : "Food, Culture, Events";
-  const mode = travelContext?.mode || "On the ground today";
+  const pace = travelContext?.mode || "On the ground today";
+  const title = mode === "Travel" ? "Travel radar" : `${mode} radar`;
+  const titleElement = document.querySelector("#sideQuestsTitle");
+  if (titleElement) titleElement.textContent = title;
 
   document.querySelector("#travelContextLine").textContent =
-    `${destination} | ${mode} | Lens: ${needs} | Whimsy ${travelContext?.whimsy || 50}/100`;
+    `${destination} | ${pace} | Lens: ${needs} | Novelty ${travelContext?.whimsy || 50}/100`;
 
   document.querySelector("#sideQuestList").innerHTML = sideQuests
     .map(
@@ -3239,7 +3635,7 @@ function renderDailyNudge() {
   setNudgeStatus(
     state.nudgeConfig.enabled
       ? `Browser nudge armed for ${state.nudgeConfig.time}. Keep QuestDex open for local notifications.`
-      : "Daily route ready. Browser nudges are opt-in; ChatGPT or Telegram is better for reliable off-app delivery.",
+      : "Daily route ready. Copy it to Notion for a diary/TODO page, or use ChatGPT/Telegram for off-app delivery.",
   );
 }
 
@@ -3408,10 +3804,11 @@ function minutesSinceMidnight(date) {
 }
 
 function formatTravelLens(travelContext = {}) {
-  if (!travelContext.active && !travelContext.destination) return "Ready when a destination is added";
-  const destination = travelContext.destination || "New country mode";
+  if (!travelContext.active) return "Optional side quests off";
+  const mode = travelContext.sideQuestMode || "Travel";
+  const destination = travelContext.destination || (mode === "Travel" ? "New country mode" : mode);
   const needs = travelContext.needs?.length ? travelContext.needs.slice(0, 3).join(", ") : "general discovery";
-  return `${destination}: ${needs}`;
+  return `${mode}: ${destination}: ${needs}`;
 }
 
 function ensureRpgProfileFields(profile) {
@@ -3497,8 +3894,11 @@ function normalizeWorldContext(worldContext = {}, profile = {}) {
 }
 
 function normalizeTravelContext(travelContext = {}) {
+  const sideQuestMode = normalizeSideQuestMode(travelContext.sideQuestMode || (travelContext.active ? "Travel" : "Off"));
   return {
+    sideQuestMode,
     destination: travelContext.destination || "",
+    focus: travelContext.focus || travelContext.destination || "",
     mode: travelContext.mode || "On the ground today",
     whimsy: Number(travelContext.whimsy || 50),
     needs: normalizeArray(travelContext.needs, Array.from(state.selectedTravelNeeds || [])).slice(0, 6),
@@ -3506,11 +3906,13 @@ function normalizeTravelContext(travelContext = {}) {
     wantsText: travelContext.wantsText || "",
     eventsSeed: travelContext.eventsSeed || "",
     active: Boolean(
-      travelContext.active ||
-        travelContext.destination ||
-        travelContext.needsText ||
-        travelContext.wantsText ||
-        travelContext.eventsSeed,
+      sideQuestMode !== "Off" &&
+        (travelContext.active ||
+          travelContext.destination ||
+          travelContext.focus ||
+          travelContext.needsText ||
+          travelContext.wantsText ||
+          travelContext.eventsSeed),
     ),
   };
 }
@@ -3790,28 +4192,70 @@ function inferGithubIndustry(signals, repoText) {
   return signals.slice(0, 3).join(", ") || "Software and open-source projects";
 }
 
-function githubSeedSummary(user, repos, languages, topics, recentRepos, totalStars) {
+function githubSeedSummary(user, repos, languages, topics, recentRepos, starredRepos, totalStars) {
   const languageText = languages.map(([language, count]) => `${language} (${count})`).join(", ") || "unspecified";
   const topicText = topics.map(([topic]) => topic).join(", ") || "no public topics";
   const repoLines = repos
     .slice(0, 12)
     .map((repo) => `- ${repo.name}: ${repo.description || "No description"} [${repo.language || "unknown"}]`)
     .join("\n");
+  const recentLines = recentRepos
+    .slice(0, 8)
+    .map((repo) => `- ${repo.name}: ${repo.description || "No description"}`)
+    .join("\n");
+  const starredLines = starredRepos
+    .slice(0, 8)
+    .map((repo) => `- ${repo.name}: ${repo.description || "No description"}`)
+    .join("\n");
 
   return [
     `user: ${user?.login || "unknown"}`,
     user?.bio ? `bio: ${user.bio}` : "",
     user?.location ? `location: ${user.location}` : "",
-    `public repos analyzed: ${repos.length}`,
-    `recent repos: ${recentRepos.length}`,
-    `public stars: ${totalStars}`,
+    `repos worked on in the last 30 days: ${recentRepos.length}`,
+    `starred repos analyzed: ${starredRepos.length}`,
+    `signal repos analyzed: ${repos.length}`,
+    `stars across signal repos: ${totalStars}`,
     `top languages: ${languageText}`,
     `topics: ${topicText}`,
-    "repos:",
+    "recent work:",
+    recentLines,
+    "starred taste:",
+    starredLines,
+    "signal repos:",
     repoLines,
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function recentGithubEventRepoNames(events = [], now = new Date()) {
+  const activeTypes = new Set([
+    "PushEvent",
+    "PullRequestEvent",
+    "IssuesEvent",
+    "CreateEvent",
+    "PullRequestReviewEvent",
+    "CommitCommentEvent",
+    "IssueCommentEvent",
+  ]);
+
+  return new Set(
+    events
+      .filter((event) => activeTypes.has(event?.type) && daysBetween(now, event.created_at) <= 30)
+      .map((event) => event.repo?.name)
+      .filter(Boolean),
+  );
+}
+
+function uniqueRepos(repos = []) {
+  const seen = new Set();
+  return repos.filter((repo) => {
+    const key = repo?.full_name || repo?.html_url || repo?.name;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function mergeTextBlock(existing, next) {
@@ -3939,6 +4383,7 @@ function uniqueTextItems(items) {
 function uniqueByTitle(items) {
   const seen = new Set();
   return items.filter((item) => {
+    if (!item?.title) return false;
     if (seen.has(item.title)) return false;
     seen.add(item.title);
     return true;

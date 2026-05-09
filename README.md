@@ -29,15 +29,15 @@ The tests use Node's built-in test runner and a small mocked browser environment
 ## Current MVP
 
 - Survey for life stage, desired evolution, priorities, blockers, coaching style, and baseline stats
-- Data Sources panel for ChatGPT profile JSON, public GitHub repo scans, session capture, and manual seed data
-- Public GitHub import that maps repos, languages, topics, stars, forks, and recent activity into proof-of-work signals
+- Data Sources panel for public GitHub activity, session capture, and manual seed data
+- Public GitHub import that maps recent work from the last 30 days plus starred repos into current proof-of-work and taste signals
 - Privacy-first Session Capture flow for bounded, user-approved browsing/research signals with sensitive-page blocking, staged profile updates, and JSON/Markdown export
 - Optional seed data through paste or file upload (`.txt`, `.md`, `.json`, `.csv`)
-- Travel side-quest setup for destination, trip mode, needs, wants, whimsy level, and daily event clues
+- Optional side-quest setup for travel, project, career, learning, wellness, social, or creative modes, with mode-specific prompts
 - Generated profile with primary type, secondary type, priorities, blockers, and stat bars
 - Quest board with reroll support
 - Side-quest board with travel needs, wants, daily clues, and serendipity prompts
-- Daily nudge TODO list with local browser notification opt-in plus ChatGPT Task and Telegram payload exports
+- Daily nudge TODO list with local browser notification opt-in plus ChatGPT Task, Notion diary, and Telegram payload exports
 - Coach console with local, rule-based responses
 - Local storage persistence
 - Soul Capsule export/import for portable user-owned profile storage

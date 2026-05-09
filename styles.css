@@ -380,6 +380,10 @@ textarea::placeholder {
   gap: 18px;
 }
 
+.source-lanes--focused {
+  grid-template-columns: minmax(260px, 1fr);
+}
+
 .source-lane {
   display: grid;
   align-content: start;
@@ -395,6 +399,10 @@ textarea::placeholder {
 
 .source-lane:nth-child(3) {
   border-top-color: var(--gold);
+}
+
+.source-lanes--focused .source-lane {
+  border-top-color: var(--teal);
 }
 
 .source-lane-heading,
@@ -779,6 +787,18 @@ textarea::placeholder {
   grid-template-columns: minmax(220px, 1fr) minmax(190px, 0.8fr) minmax(190px, 0.8fr);
   gap: 16px;
   margin-bottom: 18px;
+}
+
+.sidequest-selector-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.6fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.sidequest-config {
+  display: grid;
+  gap: 0;
 }
 
 .travel-grid input[type="range"] {
@@ -1566,6 +1586,7 @@ textarea::placeholder {
   .seed-grid,
   .source-lanes,
   .source-signal-grid,
+  .sidequest-selector-grid,
   .capture-config-grid,
   .capture-entry-grid,
   .capture-items,
