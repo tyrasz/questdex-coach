@@ -3335,7 +3335,7 @@ function exportSoulCapsule() {
   const capsule = buildSoulCapsule();
   const filename = `questdex-soul-${slugify(state.profile.displayName)}.json`;
   const serialized = downloadJson(capsule, filename);
-  setSoulStatus(`Exported ${filename}.`);
+  setSoulStatus(`Downloaded ${filename} to this device as a local JSON file.`);
   return serialized;
 }
 
@@ -3347,7 +3347,7 @@ function importSoulCapsule(event) {
   reader.onload = () => {
     try {
       applySoulCapsule(JSON.parse(String(reader.result || "")));
-      setSoulStatus(`Imported ${file.name}.`);
+      setSoulStatus(`Uploaded and imported ${file.name} from local JSON.`);
     } catch (error) {
       setSoulStatus(error.message || "Unable to import this Soul Capsule.", true);
     } finally {
@@ -3362,7 +3362,7 @@ async function exportEncryptedSoulCapsule() {
     const encryptedCapsule = await createEncryptedSoulArtifact();
     const filename = `questdex-soul-encrypted-${slugify(state.profile.displayName)}.json`;
     const serialized = downloadJson(encryptedCapsule, filename);
-    setSoulStatus(`Exported encrypted capsule ${filename}. Keep the passphrase separate.`);
+    setSoulStatus(`Downloaded encrypted JSON ${filename}. Keep the passphrase separate.`);
     return serialized;
   } catch (error) {
     setSoulStatus(error.message || "Unable to export encrypted Soul Capsule.", true);
@@ -3378,7 +3378,7 @@ async function exportSoulAnchor() {
     const serialized = downloadJson(anchor, filename);
 
     renderSoulAnchorPreview(anchor);
-    setSoulStatus(`Exported anchor ${filename}. Store the encrypted capsule separately.`);
+    setSoulStatus(`Downloaded anchor JSON ${filename}. Store the encrypted capsule separately.`);
     return serialized;
   } catch (error) {
     setSoulStatus(error.message || "Unable to export Soul Anchor.", true);
@@ -3398,7 +3398,7 @@ async function importEncryptedSoulCapsule(event) {
         readSoulPassphrase(),
       );
       applySoulCapsule(capsule);
-      setSoulStatus(`Imported encrypted capsule ${file.name}.`);
+      setSoulStatus(`Uploaded and imported encrypted JSON ${file.name}.`);
     } catch (error) {
       setSoulStatus(error.message || "Unable to import encrypted Soul Capsule.", true);
     } finally {
@@ -3685,11 +3685,7 @@ function downloadJson(payload, filename) {
   }
 
   const blob = new Blob([serialized], { type: "application/json" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(link.href);
+  triggerLocalDownload(blob, filename);
   return serialized;
 }
 
@@ -3699,12 +3695,38 @@ function downloadText(text, filename, type = "text/plain") {
   }
 
   const blob = new Blob([text], { type });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(link.href);
+  triggerLocalDownload(blob, filename);
   return text;
+}
+
+function triggerLocalDownload(blob, filename) {
+  const link = document.createElement("a");
+  const objectUrl = URL.createObjectURL(blob);
+
+  link.href = objectUrl;
+  link.download = filename;
+  link.rel = "noopener";
+  link.style.display = "none";
+
+  const parent = document.body || document.documentElement;
+  if (parent?.appendChild) {
+    parent.appendChild(link);
+  }
+
+  link.click();
+
+  const cleanup = () => {
+    if (typeof link.remove === "function") {
+      link.remove();
+    }
+    URL.revokeObjectURL(objectUrl);
+  };
+
+  if (typeof window !== "undefined" && typeof window.setTimeout === "function") {
+    window.setTimeout(cleanup, 0);
+  } else {
+    cleanup();
+  }
 }
 
 function persistProfile() {

@@ -556,6 +556,68 @@ test("Soul Capsule export and import preserves generated coach state", () => {
   assert.equal(exportedAgain.chat[0].content, "Welcome back.");
 });
 
+test("downloadJson triggers a local device JSON download link", () => {
+  const app = loadAppContext();
+  let clicked = false;
+  let appended = false;
+  let removed = false;
+  let revokedUrl = "";
+  const anchor = {
+    style: {},
+    click() {
+      clicked = true;
+    },
+    remove() {
+      removed = true;
+    },
+  };
+
+  app.Blob = function Blob(parts, options) {
+    this.parts = parts;
+    this.options = options;
+  };
+  app.URL = {
+    createObjectURL(blob) {
+      assert.equal(blob.options.type, "application/json");
+      return "blob:questdex-soul";
+    },
+    revokeObjectURL(url) {
+      revokedUrl = url;
+    },
+  };
+  app.window.setTimeout = (callback) => callback();
+  app.document = {
+    createElement(tagName) {
+      assert.equal(tagName, "a");
+      return anchor;
+    },
+    body: {
+      appendChild(node) {
+        appended = node === anchor;
+      },
+    },
+  };
+
+  const serialized = app.downloadJson({ displayName: "Mira" }, "questdex-soul-mira.json");
+
+  assert.match(serialized, /"displayName": "Mira"/);
+  assert.equal(anchor.download, "questdex-soul-mira.json");
+  assert.equal(anchor.href, "blob:questdex-soul");
+  assert.equal(clicked, true);
+  assert.equal(appended, true);
+  assert.equal(removed, true);
+  assert.equal(revokedUrl, "blob:questdex-soul");
+});
+
+test("Soul Capsule panel exposes local JSON download and upload controls", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+
+  assert.match(html, /Download a local JSON Soul Capsule/);
+  assert.match(html, /id="exportSoul"[^>]*>Download JSON</);
+  assert.match(html, /Upload JSON/);
+  assert.match(html, /id="importSoulFile"[\s\S]*accept="\.json,application\/json"/);
+});
+
 test("legacy Soul Capsules are upgraded with stable RPG fields", () => {
   const app = loadAppContext();
   const legacyCapsule = {

@@ -720,13 +720,18 @@
                 <span class="privacy-pill">Portable JSON</span>
               </div>
               <p class="soul-copy">
-                Keep this coach profile between browsers or sessions by exporting a capsule and importing it later.
+                Download a local JSON Soul Capsule, then upload that JSON in any browser to restore the coach.
               </p>
               <div class="soul-actions">
-                <button class="secondary-button compact-button" id="exportSoul" type="button">Export</button>
-                <label class="secondary-button compact-button import-soul-button">
-                  Import
-                  <input id="importSoulFile" type="file" accept=".json,application/json" />
+                <button class="secondary-button compact-button" id="exportSoul" type="button">Download JSON</button>
+                <label class="secondary-button compact-button import-soul-button" for="importSoulFile">
+                  Upload JSON
+                  <input
+                    id="importSoulFile"
+                    type="file"
+                    accept=".json,application/json"
+                    aria-label="Upload local Soul Capsule JSON"
+                  />
                 </label>
               </div>
               <div class="soul-anchor-box">
@@ -757,14 +762,19 @@
                 </div>
                 <div class="soul-actions">
                   <button class="secondary-button compact-button" id="exportEncryptedSoul" type="button">
-                    Export encrypted
+                    Download encrypted JSON
                   </button>
                   <button class="secondary-button compact-button" id="exportSoulAnchor" type="button">
-                    Export anchor
+                    Download anchor JSON
                   </button>
-                  <label class="secondary-button compact-button import-soul-button">
-                    Import encrypted
-                    <input id="importEncryptedSoulFile" type="file" accept=".json,application/json" />
+                  <label class="secondary-button compact-button import-soul-button" for="importEncryptedSoulFile">
+                    Upload encrypted JSON
+                    <input
+                      id="importEncryptedSoulFile"
+                      type="file"
+                      accept=".json,application/json"
+                      aria-label="Upload local encrypted Soul Capsule JSON"
+                    />
                   </label>
                 </div>
                 <pre id="soulAnchorPreview" class="anchor-preview" hidden></pre>
