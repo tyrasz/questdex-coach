@@ -766,6 +766,44 @@ textarea::placeholder {
   line-height: 1.4;
 }
 
+.soul-copy {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.soul-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.import-soul-button {
+  display: inline-grid;
+  place-items: center;
+}
+
+.import-soul-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.soul-status {
+  min-height: 20px;
+  margin: 12px 0 0;
+  color: var(--teal);
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.soul-status.is-error {
+  color: var(--coral);
+}
+
 .coach-panel {
   display: grid;
   grid-template-rows: auto minmax(260px, 1fr) auto;

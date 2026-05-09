@@ -36,6 +36,7 @@ The tests use Node's built-in test runner and a small mocked browser environment
 - Side-quest board with travel needs, wants, daily clues, and serendipity prompts
 - Coach console with local, rule-based responses
 - Local storage persistence
+- Soul Capsule export/import for portable user-owned profile storage
 
 ## Next Build Ideas
 
@@ -45,3 +46,5 @@ The tests use Node's built-in test runner and a small mocked browser environment
 - Add daily check-ins and notification scheduling
 - Connect travel side quests to maps, weather, events, and local search APIs
 - Add a consent screen that explains what data is used, stored, and ignored
+
+See [docs/persistence.md](docs/persistence.md) for the proposed long-term storage design.

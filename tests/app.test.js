@@ -144,6 +144,43 @@ test("coach reply recognizes travel and side-quest prompts", () => {
   assert.match(reply, /side-quest lens/);
 });
 
+test("Soul Capsule export and import preserves generated coach state", () => {
+  const app = loadAppContext();
+  const profile = app.buildProfile(baseSurvey(), "");
+  const capsule = {
+    schemaVersion: 1,
+    app: "QuestDex Coach",
+    exportedAt: "2026-05-09T00:00:00.000Z",
+    profile,
+    quests: app.buildQuests(profile),
+    sideQuests: app.buildSideQuests(profile),
+    chat: [{ role: "coach", content: "Welcome back." }],
+    priorities: ["Career", "Health"],
+    travelNeeds: ["Food", "Culture", "Events"],
+  };
+
+  assert.equal(capsule.schemaVersion, 1);
+  assert.equal(capsule.profile.displayName, "Mira");
+  assert.equal(capsule.sideQuests.length, 5);
+
+  const restoredApp = loadAppContext();
+  restoredApp.applySoulCapsule(capsule);
+  const exportedAgain = restoredApp.buildSoulCapsule("2026-05-09T00:00:00.000Z");
+
+  assert.equal(exportedAgain.profile.displayName, "Mira");
+  assert.equal(exportedAgain.profile.travelContext.destination, "Seoul, South Korea");
+  assert.equal(exportedAgain.chat[0].content, "Welcome back.");
+});
+
+test("Soul Capsule validation rejects unrelated JSON", () => {
+  const app = loadAppContext();
+
+  assert.throws(
+    () => app.validateSoulCapsule({ app: "Other App", profile: {} }),
+    /not created by QuestDex Coach/,
+  );
+});
+
 test("summarizeSeed detects event, energy, user, and consistency signals", () => {
   const app = loadAppContext();
   const insights = app.summarizeSeed(

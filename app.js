@@ -1,4 +1,5 @@
 const STORAGE_KEY = "questdex-profile";
+const SOUL_CAPSULE_VERSION = 1;
 
 const state = {
   selectedPriorities: new Set(["Career", "Health"]),
@@ -243,6 +244,9 @@ const coachPrompt = document.querySelector("#coachPrompt");
 const resetProfileButton = document.querySelector("#resetProfile");
 const rerollQuestsButton = document.querySelector("#rerollQuests");
 const rerollSideQuestsButton = document.querySelector("#rerollSideQuests");
+const exportSoulButton = document.querySelector("#exportSoul");
+const importSoulFile = document.querySelector("#importSoulFile");
+const soulStatus = document.querySelector("#soulStatus");
 
 init();
 
@@ -259,6 +263,8 @@ function init() {
   resetProfileButton.addEventListener("click", resetProfile);
   rerollQuestsButton.addEventListener("click", rerollQuests);
   rerollSideQuestsButton.addEventListener("click", rerollSideQuests);
+  exportSoulButton.addEventListener("click", exportSoulCapsule);
+  importSoulFile.addEventListener("change", importSoulCapsule);
 }
 
 function setupRangeOutputs() {
@@ -744,9 +750,104 @@ function resetProfile() {
   state.quests = [];
   state.sideQuests = [];
   state.chat = [];
+  setSoulStatus("Local profile reset.");
   dashboard.hidden = true;
   updateNav("intake");
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function buildSoulCapsule(exportedAt = new Date().toISOString()) {
+  return {
+    schemaVersion: SOUL_CAPSULE_VERSION,
+    app: "QuestDex Coach",
+    exportedAt,
+    profile: state.profile,
+    quests: state.quests,
+    sideQuests: state.sideQuests,
+    chat: state.chat,
+    priorities: Array.from(state.selectedPriorities),
+    travelNeeds: Array.from(state.selectedTravelNeeds),
+  };
+}
+
+function validateSoulCapsule(capsule) {
+  if (!capsule || typeof capsule !== "object") {
+    throw new Error("Capsule must be a JSON object.");
+  }
+  if (capsule.app !== "QuestDex Coach") {
+    throw new Error("Capsule was not created by QuestDex Coach.");
+  }
+  if (!capsule.profile || typeof capsule.profile !== "object") {
+    throw new Error("Capsule is missing a profile.");
+  }
+  if (!capsule.profile.displayName || !capsule.profile.desiredEvolution) {
+    throw new Error("Capsule profile is incomplete.");
+  }
+
+  return true;
+}
+
+function applySoulCapsule(capsule) {
+  validateSoulCapsule(capsule);
+
+  state.profile = capsule.profile;
+  state.quests = capsule.quests?.length ? capsule.quests : buildQuests(state.profile);
+  state.sideQuests = capsule.sideQuests?.length ? capsule.sideQuests : buildSideQuests(state.profile);
+  state.chat = capsule.chat?.length
+    ? capsule.chat
+    : [{ role: "coach", content: buildCoachGreeting(state.profile, state.quests, state.sideQuests) }];
+  state.selectedPriorities = new Set(capsule.priorities || state.profile.priorities || ["Career", "Health"]);
+  state.selectedTravelNeeds = new Set(
+    capsule.travelNeeds || state.profile.travelContext?.needs || ["Food", "Culture", "Events"],
+  );
+
+  persistProfile();
+  renderDashboard();
+  dashboard.hidden = false;
+  dashboard.scrollIntoView({ behavior: "smooth", block: "start" });
+  updateNav("dashboard");
+}
+
+function exportSoulCapsule() {
+  if (!state.profile) {
+    setSoulStatus("Generate a QuestDex profile before exporting.");
+    return;
+  }
+
+  const capsule = buildSoulCapsule();
+  const serialized = JSON.stringify(capsule, null, 2);
+  const filename = `questdex-soul-${slugify(state.profile.displayName)}.json`;
+
+  if (typeof Blob === "undefined" || !document.createElement || typeof URL === "undefined") {
+    setSoulStatus("Soul Capsule prepared.");
+    return serialized;
+  }
+
+  const blob = new Blob([serialized], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  setSoulStatus(`Exported ${filename}.`);
+}
+
+function importSoulCapsule(event) {
+  const [file] = event.target.files;
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      applySoulCapsule(JSON.parse(String(reader.result || "")));
+      setSoulStatus(`Imported ${file.name}.`);
+    } catch (error) {
+      setSoulStatus(error.message || "Unable to import this Soul Capsule.", true);
+    } finally {
+      event.target.value = "";
+    }
+  };
+  reader.readAsText(file);
 }
 
 function renderDashboard() {
@@ -858,6 +959,12 @@ function renderCoachFeed() {
   feed.scrollTop = feed.scrollHeight;
 }
 
+function setSoulStatus(message, isError = false) {
+  if (!soulStatus) return;
+  soulStatus.textContent = message;
+  soulStatus.classList.toggle("is-error", isError);
+}
+
 function persistProfile() {
   localStorage.setItem(
     STORAGE_KEY,
@@ -930,6 +1037,14 @@ function formatTravelLens(travelContext = {}) {
 function shorten(text, maxLength) {
   if (text.length <= maxLength) return text;
   return `${text.slice(0, maxLength - 3).trim()}...`;
+}
+
+function slugify(text) {
+  return String(text || "trainer")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 42) || "trainer";
 }
 
 function unique(items) {

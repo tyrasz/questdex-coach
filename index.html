@@ -324,6 +324,27 @@
               <ul id="insightsList" class="insight-list"></ul>
             </section>
 
+            <section class="panel soul-panel" aria-labelledby="soulTitle">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Persistence</p>
+                  <h3 id="soulTitle">Soul Capsule</h3>
+                </div>
+                <span class="privacy-pill">Portable JSON</span>
+              </div>
+              <p class="soul-copy">
+                Keep this coach profile between browsers or sessions by exporting a capsule and importing it later.
+              </p>
+              <div class="soul-actions">
+                <button class="secondary-button compact-button" id="exportSoul" type="button">Export</button>
+                <label class="secondary-button compact-button import-soul-button">
+                  Import
+                  <input id="importSoulFile" type="file" accept=".json,application/json" />
+                </label>
+              </div>
+              <p id="soulStatus" class="soul-status" aria-live="polite"></p>
+            </section>
+
             <section class="panel coach-panel" aria-labelledby="coachTitle">
               <div class="panel-heading">
                 <div>
