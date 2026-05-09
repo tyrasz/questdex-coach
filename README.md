@@ -12,6 +12,12 @@ For a local server:
 npm start
 ```
 
+## Web Demo
+
+GitHub Pages deploys from `main` when Pages is enabled for the repository:
+
+https://tyrasz.github.io/questdex-coach/
+
 ## Test
 
 ```sh
