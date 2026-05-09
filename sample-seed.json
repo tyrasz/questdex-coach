@@ -1,0 +1,20 @@
+{
+  "goals": [
+    "ship a hackathon MVP",
+    "talk to five target users",
+    "build a repeatable weekly creative habit"
+  ],
+  "habits": [
+    "works best in late morning",
+    "loses momentum after lunch",
+    "responds well to short timed sprints"
+  ],
+  "blockers": [
+    "overplanning",
+    "avoiding outreach",
+    "inconsistent sleep"
+  ],
+  "deadlines": [
+    "demo day this weekend"
+  ]
+}

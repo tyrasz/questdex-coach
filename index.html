@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QuestDex Coach</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="side-rail" aria-label="QuestDex navigation">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true">QD</div>
+          <div>
+            <p class="eyebrow">QuestDex</p>
+            <h1>Life coach field guide</h1>
+          </div>
+        </div>
+
+        <nav class="step-nav" aria-label="Current flow">
+          <a class="step-nav__item is-active" href="#intake">
+            <span class="step-dot">1</span>
+            <span>Survey</span>
+          </a>
+          <a class="step-nav__item" href="#seed">
+            <span class="step-dot">2</span>
+            <span>Data seed</span>
+          </a>
+          <a class="step-nav__item" href="#sidequests">
+            <span class="step-dot">3</span>
+            <span>Side quests</span>
+          </a>
+          <a class="step-nav__item" href="#dashboard">
+            <span class="step-dot">4</span>
+            <span>Coach</span>
+          </a>
+        </nav>
+
+        <div class="rail-note">
+          <p>Build a living profile, train real-life stats, and turn ambition into quests.</p>
+        </div>
+      </aside>
+
+      <main>
+        <section id="intake" class="workspace-band">
+          <div class="section-header">
+            <p class="eyebrow">Start here</p>
+            <h2>Survey your current form</h2>
+            <p>
+              Answer a few prompts so the coach can estimate your stage, strengths,
+              blockers, and next useful quests.
+            </p>
+          </div>
+
+          <form id="intakeForm" class="survey-grid">
+            <fieldset class="panel">
+              <legend>Identity</legend>
+              <label>
+                Display name
+                <input name="displayName" type="text" placeholder="Alex" autocomplete="name" />
+              </label>
+
+              <label>
+                Current life stage
+                <select name="lifeStage" required>
+                  <option value="Student">Student</option>
+                  <option value="Early-career builder">Early-career builder</option>
+                  <option value="Founder">Founder</option>
+                  <option value="Career transition">Career transition</option>
+                  <option value="Recovery and reset">Recovery and reset</option>
+                  <option value="Explorer">Explorer</option>
+                </select>
+              </label>
+
+              <label>
+                Desired evolution
+                <textarea
+                  name="desiredEvolution"
+                  rows="4"
+                  placeholder="I want to become a confident product builder who ships weekly and talks to users."
+                  required
+                ></textarea>
+              </label>
+            </fieldset>
+
+            <fieldset class="panel">
+              <legend>Training signals</legend>
+              <div class="range-stack">
+                <label>
+                  Energy
+                  <input name="energy" type="range" min="1" max="100" value="55" />
+                  <output data-output-for="energy">55</output>
+                </label>
+                <label>
+                  Focus
+                  <input name="focus" type="range" min="1" max="100" value="48" />
+                  <output data-output-for="focus">48</output>
+                </label>
+                <label>
+                  Confidence
+                  <input name="confidence" type="range" min="1" max="100" value="46" />
+                  <output data-output-for="confidence">46</output>
+                </label>
+                <label>
+                  Consistency
+                  <input name="consistency" type="range" min="1" max="100" value="39" />
+                  <output data-output-for="consistency">39</output>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="panel wide-panel">
+              <legend>Priorities and blockers</legend>
+              <div class="chip-group" data-chip-group="priorities">
+                <button type="button" data-value="Career">Career</button>
+                <button type="button" data-value="Study">Study</button>
+                <button type="button" data-value="Health">Health</button>
+                <button type="button" data-value="Social">Social</button>
+                <button type="button" data-value="Money">Money</button>
+                <button type="button" data-value="Creativity">Creativity</button>
+                <button type="button" data-value="Startup">Startup</button>
+                <button type="button" data-value="Recovery">Recovery</button>
+              </div>
+
+              <label>
+                What keeps repeating as a problem?
+                <textarea
+                  name="blockers"
+                  rows="3"
+                  placeholder="I overplan, avoid outreach, and lose momentum after a stressful day."
+                ></textarea>
+              </label>
+
+              <label>
+                Coaching style
+                <select name="coachTone">
+                  <option value="Direct and warm">Direct and warm</option>
+                  <option value="Gentle and reflective">Gentle and reflective</option>
+                  <option value="Tactical and concise">Tactical and concise</option>
+                  <option value="Playful and game-like">Playful and game-like</option>
+                </select>
+              </label>
+            </fieldset>
+
+            <section id="seed" class="panel wide-panel seed-panel" aria-labelledby="seedTitle">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Optional</p>
+                  <h3 id="seedTitle">Seed the coach with your own data</h3>
+                </div>
+                <span class="privacy-pill">Local only in this MVP</span>
+              </div>
+
+              <div class="seed-grid">
+                <label class="file-drop">
+                  <input id="seedFile" type="file" accept=".txt,.md,.json,.csv" />
+                  <span class="file-icon" aria-hidden="true"></span>
+                  <span>
+                    <strong>Upload notes, journal exports, tasks, or goals</strong>
+                    <small>.txt, .md, .json, or .csv</small>
+                  </span>
+                </label>
+
+                <label>
+                  Paste a small dataset
+                  <textarea
+                    name="seedText"
+                    rows="8"
+                    placeholder='{"goals":["ship MVP","talk to 5 users"],"habits":["morning walk"],"blockers":["avoid sales calls"]}'
+                  ></textarea>
+                </label>
+              </div>
+
+              <div class="seed-preview" id="seedPreview" hidden></div>
+            </section>
+
+            <section id="sidequests" class="panel wide-panel sidequest-setup" aria-labelledby="sideQuestSetupTitle">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Optional side quest pack</p>
+                  <h3 id="sideQuestSetupTitle">Travel quest radar</h3>
+                </div>
+                <span class="privacy-pill">Destination-aware</span>
+              </div>
+
+              <div class="travel-grid">
+                <label>
+                  Destination
+                  <input
+                    name="travelDestination"
+                    type="text"
+                    placeholder="Seoul, South Korea"
+                    autocomplete="off"
+                  />
+                </label>
+
+                <label>
+                  Trip mode
+                  <select name="travelMode">
+                    <option value="On the ground today">On the ground today</option>
+                    <option value="Planning a future trip">Planning a future trip</option>
+                    <option value="Weekend window">Weekend window</option>
+                    <option value="Long stay">Long stay</option>
+                    <option value="Open-ended wandering">Open-ended wandering</option>
+                  </select>
+                </label>
+
+                <label>
+                  Whimsy appetite
+                  <input name="whimsy" type="range" min="1" max="100" value="64" />
+                  <output data-output-for="whimsy">64</output>
+                </label>
+              </div>
+
+              <div class="chip-group travel-chip-group" data-chip-group="travelNeeds">
+                <button type="button" data-value="Food">Food</button>
+                <button type="button" data-value="Culture">Culture</button>
+                <button type="button" data-value="Nature">Nature</button>
+                <button type="button" data-value="Events">Events</button>
+                <button type="button" data-value="Quiet">Quiet</button>
+                <button type="button" data-value="Social">Social</button>
+                <button type="button" data-value="Budget">Budget</button>
+                <button type="button" data-value="Accessibility">Accessibility</button>
+              </div>
+
+              <div class="travel-details">
+                <label>
+                  What do you need this trip to handle?
+                  <textarea
+                    name="travelNeedsText"
+                    rows="3"
+                    placeholder="Vegetarian food, safe late-night transit, cafes to work from, low walking days."
+                  ></textarea>
+                </label>
+
+                <label>
+                  What do you want or feel curious about?
+                  <textarea
+                    name="travelWantsText"
+                    rows="3"
+                    placeholder="Street markets, indie bookstores, waterfront walks, live jazz, architecture."
+                  ></textarea>
+                </label>
+
+                <label>
+                  Daily events or local clues
+                  <textarea
+                    name="travelEventsSeed"
+                    rows="3"
+                    placeholder="Paste today's events, festival notes, neighborhood tips, weather notes, or recommendations."
+                  ></textarea>
+                </label>
+              </div>
+            </section>
+
+            <div class="form-actions wide-panel">
+              <button class="secondary-button" type="button" id="loadDemoData">Load demo seed</button>
+              <button class="primary-button" type="submit" id="generateQuestDex">Generate QuestDex</button>
+            </div>
+          </form>
+        </section>
+
+        <section id="dashboard" class="workspace-band dashboard-band" hidden>
+          <div class="section-header">
+            <p class="eyebrow">Generated profile</p>
+            <h2>Your QuestDex entry</h2>
+            <p>The coach converts your survey and seed data into stats, moves, quests, and next actions.</p>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="panel profile-panel" aria-labelledby="profileTitle">
+              <div class="profile-topline">
+                <div class="avatar-orbit" aria-hidden="true">
+                  <div class="avatar-core"></div>
+                </div>
+                <div>
+                  <p class="eyebrow">Current form</p>
+                  <h3 id="profileTitle">Explorer</h3>
+                  <p id="profileSubtitle"></p>
+                </div>
+              </div>
+              <dl class="dex-list" id="dexList"></dl>
+            </section>
+
+            <section class="panel stats-panel" aria-labelledby="statsTitle">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Training stats</p>
+                  <h3 id="statsTitle">Baseline</h3>
+                </div>
+                <button class="icon-button" id="resetProfile" type="button" aria-label="Reset profile" title="Reset profile">
+                  <span aria-hidden="true">R</span>
+                </button>
+              </div>
+              <div id="statsList" class="stats-list"></div>
+            </section>
+
+            <section class="panel quests-panel" aria-labelledby="questsTitle">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Today</p>
+                  <h3 id="questsTitle">Recommended quests</h3>
+                </div>
+                <button class="secondary-button compact-button" id="rerollQuests" type="button">Reroll</button>
+              </div>
+              <div id="questList" class="quest-list"></div>
+            </section>
+
+            <section class="panel sidequest-panel" aria-labelledby="sideQuestsTitle">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Side quests</p>
+                  <h3 id="sideQuestsTitle">Travel radar</h3>
+                </div>
+                <button class="secondary-button compact-button" id="rerollSideQuests" type="button">Reroll</button>
+              </div>
+              <p id="travelContextLine" class="travel-context-line"></p>
+              <div id="sideQuestList" class="sidequest-list"></div>
+            </section>
+
+            <section class="panel insights-panel" aria-labelledby="insightsTitle">
+              <p class="eyebrow">Coach memory</p>
+              <h3 id="insightsTitle">Seed insights</h3>
+              <ul id="insightsList" class="insight-list"></ul>
+            </section>
+
+            <section class="panel coach-panel" aria-labelledby="coachTitle">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Ask the guide</p>
+                  <h3 id="coachTitle">Coach console</h3>
+                </div>
+                <span id="coachToneBadge" class="tone-badge"></span>
+              </div>
+
+              <div id="coachFeed" class="coach-feed" aria-live="polite"></div>
+
+              <form id="coachForm" class="coach-input">
+                <label class="sr-only" for="coachPrompt">Ask your coach</label>
+                <input
+                  id="coachPrompt"
+                  name="coachPrompt"
+                  type="text"
+                  placeholder="I have 20 minutes and feel stuck. What should I do?"
+                  autocomplete="off"
+                />
+                <button class="primary-button" type="submit">Ask</button>
+              </form>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
