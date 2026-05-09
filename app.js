@@ -1,9 +1,12 @@
 const STORAGE_KEY = "questdex-profile";
+const SESSION_CAPTURE_STORAGE_KEY = "questdex-session-capture";
 const SOUL_CAPSULE_VERSION = 1;
 const ENCRYPTED_SOUL_VERSION = 1;
 const SOUL_ANCHOR_VERSION = 1;
+const SESSION_CAPTURE_VERSION = 1;
 const SOUL_KDF_ITERATIONS = 150000;
 const NUDGE_CHECK_INTERVAL_MS = 60000;
+const SESSION_CAPTURE_TEXT_LIMIT = 1200;
 
 const priorityOptions = ["Career", "Study", "Health", "Social", "Money", "Creativity", "Startup", "Recovery"];
 const buildGoalOptions = [
@@ -34,12 +37,23 @@ const defaultNudgeConfig = {
   channel: "browser",
   lastSentDate: "",
 };
+const defaultSessionCaptureSettings = {
+  durationMinutes: 30,
+  mode: "standard",
+  storeFullUrl: false,
+  enableSelectedTextCapture: true,
+  enablePageSummary: false,
+};
 
 const state = {
   selectedPriorities: new Set(["Career", "Health"]),
   selectedBuildGoals: new Set(["Freedom", "Mastery"]),
   selectedTravelNeeds: new Set(["Food", "Culture", "Events"]),
   nudgeConfig: { ...defaultNudgeConfig },
+  sessionCapture: {
+    activeSession: null,
+    lastAnalysis: null,
+  },
   uploadedSeed: "",
   profile: null,
   quests: [],
@@ -352,6 +366,30 @@ const githubRepoHighlights = document.querySelector("#githubRepoHighlights");
 const githubOAuthButton = document.querySelector("#githubOAuthButton");
 const githubOAuthStatus = document.querySelector("#githubOAuthStatus");
 const sourceSignalBoard = document.querySelector("#sourceSignalBoard");
+const captureDurationSelect = document.querySelector("#captureDuration");
+const captureModeSelect = document.querySelector("#captureMode");
+const captureStoreUrlCheckbox = document.querySelector("#captureStoreUrl");
+const captureEnableSelectedTextCheckbox = document.querySelector("#captureEnableSelectedText");
+const captureEnablePageSummaryCheckbox = document.querySelector("#captureEnablePageSummary");
+const startCaptureSessionButton = document.querySelector("#startCaptureSession");
+const pauseCaptureSessionButton = document.querySelector("#pauseCaptureSession");
+const endCaptureSessionButton = document.querySelector("#endCaptureSession");
+const loadCaptureDemoButton = document.querySelector("#loadCaptureDemo");
+const deleteCaptureSessionButton = document.querySelector("#deleteCaptureSession");
+const captureCurrentPageButton = document.querySelector("#captureCurrentPage");
+const captureSelectedTextButton = document.querySelector("#captureSelectedText");
+const applySessionCaptureSeedButton = document.querySelector("#applySessionCaptureSeed");
+const exportSessionCaptureJsonButton = document.querySelector("#exportSessionCaptureJson");
+const exportSessionCaptureMarkdownButton = document.querySelector("#exportSessionCaptureMarkdown");
+const sessionCaptureStatus = document.querySelector("#sessionCaptureStatus");
+const sessionCaptureTimer = document.querySelector("#sessionCaptureTimer");
+const sessionCaptureWarning = document.querySelector("#sessionCaptureWarning");
+const sessionCaptureItems = document.querySelector("#sessionCaptureItems");
+const sessionCaptureAnalysis = document.querySelector("#sessionCaptureAnalysis");
+const capturePageTitleInput = document.querySelector("#capturePageTitle");
+const capturePageUrlInput = document.querySelector("#capturePageUrl");
+const captureSelectedTextValueInput = document.querySelector("#captureSelectedTextValue");
+const captureManualNoteInput = document.querySelector("#captureManualNote");
 const nudgeTimeInput = document.querySelector("#nudgeTime");
 const nudgeToneSelect = document.querySelector("#nudgeTone");
 const nudgeChannelSelect = document.querySelector("#nudgeChannel");
@@ -392,6 +430,17 @@ function init() {
   applyChatGptSeedButton.addEventListener("click", applyChatGptSeed);
   analyzeGithubButton.addEventListener("click", analyzeGithubSource);
   githubOAuthButton.addEventListener("click", explainGithubOAuthPath);
+  startCaptureSessionButton.addEventListener("click", startCaptureSessionFromUi);
+  pauseCaptureSessionButton.addEventListener("click", toggleCaptureSessionPaused);
+  endCaptureSessionButton.addEventListener("click", endCaptureSessionFromUi);
+  loadCaptureDemoButton.addEventListener("click", loadSessionCaptureDemo);
+  deleteCaptureSessionButton.addEventListener("click", deleteSessionCapture);
+  captureCurrentPageButton.addEventListener("click", () => captureDraftItem("page_metadata"));
+  captureSelectedTextButton.addEventListener("click", () => captureDraftItem("selected_text"));
+  applySessionCaptureSeedButton.addEventListener("click", applySessionCaptureSeed);
+  exportSessionCaptureJsonButton.addEventListener("click", exportSessionCaptureJson);
+  exportSessionCaptureMarkdownButton.addEventListener("click", exportSessionCaptureMarkdown);
+  sessionCaptureAnalysis.addEventListener("click", handleSessionSuggestionAction);
   refreshNudgeButton.addEventListener("click", refreshDailyNudge);
   enableBrowserNudgeButton.addEventListener("click", enableBrowserNudge);
   copyChatGptTaskButton.addEventListener("click", copyChatGptTaskPrompt);
@@ -411,6 +460,8 @@ function init() {
   exportEncryptedSoulButton.addEventListener("click", exportEncryptedSoulCapsule);
   exportSoulAnchorButton.addEventListener("click", exportSoulAnchor);
   importEncryptedSoulFile.addEventListener("change", importEncryptedSoulCapsule);
+  restoreSessionCapture();
+  renderSessionCapturePanel();
   hydrateNudgeControls();
   startNudgeTimer();
 }
@@ -844,6 +895,1019 @@ function setSourceStatus(element, message, isError = false) {
   if (!element) return;
   element.textContent = message;
   element.classList.toggle("is-error", isError);
+}
+
+function startCaptureSessionFromUi() {
+  state.sessionCapture.activeSession = createCaptureSession(readSessionCaptureSettingsFromUi());
+  state.sessionCapture.lastAnalysis = null;
+  clearSessionCaptureDraft();
+  persistSessionCapture();
+  renderSessionCapturePanel();
+  setSourceStatus(sessionCaptureStatus, "Session active. Capture only pages you want the coach to use.");
+}
+
+function readSessionCaptureSettingsFromUi() {
+  return {
+    durationMinutes: Number(captureDurationSelect?.value || defaultSessionCaptureSettings.durationMinutes),
+    mode: captureModeSelect?.value || defaultSessionCaptureSettings.mode,
+    storeFullUrl: Boolean(captureStoreUrlCheckbox?.checked),
+    enableSelectedTextCapture: captureEnableSelectedTextCheckbox?.checked !== false,
+    enablePageSummary: Boolean(captureEnablePageSummaryCheckbox?.checked),
+  };
+}
+
+function createCaptureSession(settings = {}, now = new Date()) {
+  const merged = {
+    ...defaultSessionCaptureSettings,
+    ...settings,
+    mode: normalizeCaptureMode(settings.mode || defaultSessionCaptureSettings.mode),
+    durationMinutes: normalizeCaptureDuration(settings.durationMinutes),
+  };
+  const startedAt = new Date(now);
+  const expiresAt = new Date(startedAt.getTime() + merged.durationMinutes * 60000);
+
+  return {
+    schemaVersion: SESSION_CAPTURE_VERSION,
+    id: createId("session"),
+    status: "active",
+    startedAt: startedAt.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    mode: merged.mode,
+    settings: merged,
+    items: [],
+    privacyFlags: [],
+    analysis: null,
+  };
+}
+
+function normalizeCaptureDuration(value) {
+  const duration = Number(value || defaultSessionCaptureSettings.durationMinutes);
+  return [5, 15, 30, 60].includes(duration) ? duration : defaultSessionCaptureSettings.durationMinutes;
+}
+
+function normalizeCaptureMode(value) {
+  const mode = String(value || "");
+  return ["domain_only", "standard", "selected_text", "page_summary"].includes(mode) ? mode : "standard";
+}
+
+function toggleCaptureSessionPaused() {
+  const session = state.sessionCapture.activeSession;
+  if (!session) {
+    setSourceStatus(sessionCaptureStatus, "Start a session before pausing capture.", true);
+    return;
+  }
+  if (session.status === "paused") {
+    session.status = "active";
+    setSourceStatus(sessionCaptureStatus, "Session resumed.");
+  } else if (session.status === "active") {
+    session.status = "paused";
+    setSourceStatus(sessionCaptureStatus, "Session paused. No capture will be accepted until resumed.");
+  } else {
+    setSourceStatus(sessionCaptureStatus, "This session is no longer active.", true);
+  }
+  persistSessionCapture();
+  renderSessionCapturePanel();
+}
+
+function endCaptureSessionFromUi() {
+  const session = state.sessionCapture.activeSession;
+  if (!session) {
+    setSourceStatus(sessionCaptureStatus, "Start or load a session before analysis.", true);
+    return;
+  }
+
+  expireCaptureSessionIfNeeded(session);
+  session.status = session.status === "deleted" ? "deleted" : "ended";
+  session.endedAt = new Date().toISOString();
+  const analysis = analyzeCaptureSession(session, state.profile);
+  session.analysis = analysis;
+  state.sessionCapture.lastAnalysis = analysis;
+  persistSessionCapture();
+  renderSessionCapturePanel();
+  setSourceStatus(sessionCaptureStatus, "Session analyzed. Review the suggested profile updates before applying them.");
+}
+
+function loadSessionCaptureDemo() {
+  const session = createCaptureSession({
+    durationMinutes: 30,
+    mode: "standard",
+    storeFullUrl: false,
+    enableSelectedTextCapture: true,
+    enablePageSummary: true,
+  }, new Date("2026-05-09T06:30:00.000Z"));
+  const demoItems = [
+    {
+      type: "page_metadata",
+      title: "Chrome extensions activeTab documentation",
+      url: "https://developer.chrome.com/docs/extensions/develop/concepts/activeTab",
+      manualNote: "Researching temporary user-invoked browser access for privacy-first session capture.",
+    },
+    {
+      type: "page_metadata",
+      title: "Manifest V3 service worker migration",
+      url: "https://developer.chrome.com/docs/extensions/develop/migrate/to-service-workers",
+      manualNote: "Need a small extension popup and local storage path, not passive browsing monitoring.",
+    },
+    {
+      type: "selected_text",
+      title: "Human RPG session capture notes",
+      url: "https://questdex.local/session-capture-prd",
+      selectedText: "Turn this research session into active interests, quests, skill-tree nodes, and next actions.",
+      manualNote: "This maps browsing attention into a reviewable Human RPG quest log.",
+    },
+  ];
+
+  demoItems.forEach((item) => captureItemIntoSession(session, item, item.type, new Date("2026-05-09T06:35:00.000Z")));
+  session.status = "ended";
+  session.endedAt = new Date("2026-05-09T06:45:00.000Z").toISOString();
+  session.analysis = analyzeCaptureSession(session, state.profile, new Date("2026-05-09T06:45:00.000Z"));
+  state.sessionCapture.activeSession = session;
+  state.sessionCapture.lastAnalysis = session.analysis;
+  persistSessionCapture();
+  renderSessionCapturePanel();
+  setSourceStatus(sessionCaptureStatus, "Demo session loaded and analyzed.");
+}
+
+function deleteSessionCapture() {
+  state.sessionCapture.activeSession = null;
+  state.sessionCapture.lastAnalysis = null;
+  localStorage.removeItem(SESSION_CAPTURE_STORAGE_KEY);
+  renderSessionCapturePanel();
+  setSourceStatus(sessionCaptureStatus, "Capture session deleted locally.");
+}
+
+function captureDraftItem(type) {
+  const session = writableCaptureSession();
+  if (!session) return;
+
+  const draft = {
+    title: capturePageTitleInput?.value || "",
+    url: capturePageUrlInput?.value || "",
+    selectedText: captureSelectedTextValueInput?.value || "",
+    manualNote: captureManualNoteInput?.value || "",
+  };
+  const result = captureItemIntoSession(session, draft, type);
+  let statusMessage = "";
+  let isError = false;
+
+  if (result.blocked) {
+    showSessionCaptureWarning(result.flag.reason);
+    statusMessage = "Capture blocked by privacy guard.";
+    isError = true;
+  } else if (result.duplicate) {
+    hideSessionCaptureWarning();
+    statusMessage = "Repeated page folded into the existing capture.";
+  } else {
+    hideSessionCaptureWarning();
+    statusMessage = `Captured ${result.item.domain || "session item"}.`;
+  }
+
+  persistSessionCapture();
+  renderSessionCapturePanel();
+  setSourceStatus(sessionCaptureStatus, statusMessage, isError);
+}
+
+function writableCaptureSession() {
+  const session = state.sessionCapture.activeSession;
+  if (!session) {
+    setSourceStatus(sessionCaptureStatus, "Start a capture session first.", true);
+    return null;
+  }
+  expireCaptureSessionIfNeeded(session);
+  if (session.status === "expired") {
+    persistSessionCapture();
+    renderSessionCapturePanel();
+    setSourceStatus(sessionCaptureStatus, "This session expired. Analyze it or start a new one.", true);
+    return null;
+  }
+  if (session.status === "paused") {
+    setSourceStatus(sessionCaptureStatus, "Session is paused.", true);
+    return null;
+  }
+  if (session.status !== "active") {
+    setSourceStatus(sessionCaptureStatus, "Start a new session before capturing more pages.", true);
+    return null;
+  }
+  return session;
+}
+
+function expireCaptureSessionIfNeeded(session, now = new Date()) {
+  if (!session || session.status !== "active") return false;
+  if (new Date(session.expiresAt).getTime() > new Date(now).getTime()) return false;
+  session.status = "expired";
+  return true;
+}
+
+function captureItemIntoSession(session, draft, type = "page_metadata", now = new Date()) {
+  const processed = processCaptureItem(session, draft, type, now);
+  if (processed.blocked) {
+    session.privacyFlags.push(processed.flag);
+    return processed;
+  }
+
+  const duplicate = findDuplicateCapture(session.items, processed.item);
+  if (duplicate) {
+    duplicate.repeatCount = Number(duplicate.repeatCount || 1) + 1;
+    duplicate.capturedAt = processed.item.capturedAt;
+    return { item: duplicate, duplicate: true };
+  }
+
+  session.items.push(processed.item);
+  return { item: processed.item, duplicate: false };
+}
+
+function processCaptureItem(session, draft, type = "page_metadata", now = new Date()) {
+  const page = normalizeCapturePage(draft.url || "");
+  const title = cleanCaptureText(draft.title || page.title || "Untitled page", 140);
+  const selectedText = cleanCaptureText(draft.selectedText || "", SESSION_CAPTURE_TEXT_LIMIT);
+  const manualNote = cleanCaptureText(draft.manualNote || "", SESSION_CAPTURE_TEXT_LIMIT);
+  const detection = detectSensitiveCapture({
+    title,
+    domain: page.domain,
+    url: page.cleanUrl || draft.url || "",
+    selectedText,
+    manualNote,
+    hasPasswordField: Boolean(draft.hasPasswordField),
+  });
+
+  if (detection.sensitive) {
+    return {
+      blocked: true,
+      flag: {
+        id: createId("privacy"),
+        severity: "blocked",
+        reason: detection.reason,
+      },
+    };
+  }
+
+  const mode = type === "selected_text" ? "selected_text" : normalizeCaptureMode(session.mode);
+  const storeUrl = Boolean(session.settings?.storeFullUrl && mode !== "domain_only");
+  const includeSelectedText =
+    Boolean(selectedText) && (mode === "selected_text" || session.settings?.enableSelectedTextCapture);
+  const includePageSummary = Boolean(manualNote) && (mode === "page_summary" || session.settings?.enablePageSummary);
+
+  return {
+    blocked: false,
+    item: {
+      id: createId("capture"),
+      sessionId: session.id,
+      type: mode === "selected_text" ? "selected_text" : includePageSummary ? "page_summary" : type,
+      capturedAt: new Date(now).toISOString(),
+      title: mode === "domain_only" ? "" : title,
+      domain: page.domain,
+      url: storeUrl ? page.cleanUrl : "",
+      urlWasStored: Boolean(storeUrl && page.cleanUrl),
+      selectedText: includeSelectedText ? selectedText : "",
+      pageSummary: includePageSummary ? manualNote : "",
+      manualNote: includePageSummary ? "" : manualNote,
+      sensitive: false,
+      source: type === "selected_text" ? "manual_selection" : "manual",
+      rawContentStored: Boolean(includeSelectedText || includePageSummary || manualNote),
+      repeatCount: 1,
+    },
+  };
+}
+
+function normalizeCapturePage(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return { domain: "", cleanUrl: "" };
+
+  try {
+    const withProtocol = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const url = new URL(withProtocol);
+    const domain = url.hostname.replace(/^www\./, "");
+    const cleanUrl = `${url.protocol}//${url.host}${url.pathname.replace(/\/$/, "")}`;
+    return { domain, cleanUrl, protocol: url.protocol };
+  } catch (error) {
+    return {
+      domain: raw
+        .replace(/^https?:\/\//i, "")
+        .split(/[/?#]/)[0]
+        .replace(/^www\./, ""),
+      cleanUrl: "",
+    };
+  }
+}
+
+function detectSensitiveCapture({ title = "", domain = "", url = "", selectedText = "", manualNote = "", hasPasswordField = false }) {
+  const haystack = `${title} ${domain} ${url}`.toLowerCase();
+  const text = `${selectedText} ${manualNote}`.toLowerCase();
+  const blockedKeywords = [
+    "bank",
+    "brokerage",
+    "clinic",
+    "exchange",
+    "government",
+    "hospital",
+    "immigration",
+    "inbox",
+    "insurance",
+    "login",
+    "medical",
+    "messages",
+    "password",
+    "payroll",
+    "signin",
+    "tax",
+    "wallet",
+  ];
+  const blockedDomains = [
+    "accounts.google.com",
+    "mail.google.com",
+    "web.whatsapp.com",
+    "icloud.com",
+    "dropbox.com",
+    "drive.google.com",
+  ];
+
+  if (hasPasswordField) {
+    return { sensitive: true, reason: "Password fields are never captured." };
+  }
+  if (/^(chrome|about|file|data):/i.test(String(url || ""))) {
+    return { sensitive: true, reason: "Browser-internal and local pages are blocked by default." };
+  }
+  if (blockedDomains.some((blockedDomain) => domain.endsWith(blockedDomain))) {
+    return { sensitive: true, reason: `${domain} is on the never-capture list.` };
+  }
+  const keyword = blockedKeywords.find((word) => haystack.includes(word));
+  if (keyword) {
+    return { sensitive: true, reason: `This page looks sensitive because it matched "${keyword}".` };
+  }
+  if (/password|one-time code|otp|access token|secret key|private key/i.test(text)) {
+    return { sensitive: true, reason: "Selected text appears to contain secrets or authentication material." };
+  }
+
+  return { sensitive: false, reason: "" };
+}
+
+function cleanCaptureText(value, limit) {
+  const normalized = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const truncated = normalized.length > limit ? `${normalized.slice(0, limit - 3).trim()}...` : normalized;
+  return redactSensitivePatterns(truncated);
+}
+
+function redactSensitivePatterns(value) {
+  return String(value || "")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted email]")
+    .replace(/\b(?:\+?\d[\s-]?){9,}\b/g, "[redacted phone]")
+    .replace(/\b(?:sk|ghp|gho|github_pat)_[A-Za-z0-9_]{12,}\b/g, "[redacted token]")
+    .replace(/\b[A-Fa-f0-9]{32,}\b/g, "[redacted secret]");
+}
+
+function findDuplicateCapture(items, item) {
+  return items.find((existing) => {
+    const existingKey = [existing.type, existing.domain, existing.url, existing.title].join("|").toLowerCase();
+    const itemKey = [item.type, item.domain, item.url, item.title].join("|").toLowerCase();
+    return existingKey === itemKey;
+  });
+}
+
+function analyzeCaptureSession(session, existingProfile = null, now = new Date()) {
+  const items = Array.isArray(session?.items) ? session.items.filter((item) => !item.sensitive) : [];
+  const topics = detectSessionTopics(items);
+  const archetypeActivity = buildSessionArchetypeActivity(topics, items);
+  const suggestedQuests = buildSessionSuggestedQuests(topics, items);
+  const suggestedSkillNodes = buildSessionSkillNodes(topics, items);
+  const interestSignals = buildSessionInterestSignals(topics, items);
+  const suggestedProfileUpdates = buildSessionProfileUpdates(topics, archetypeActivity, suggestedQuests, items);
+  const topTopic = topics[0]?.label || "current research";
+  const domainText = uniqueTextItems(items.map((item) => item.domain)).slice(0, 4).join(", ");
+  const confidence = clamp(44 + Math.min(items.length, 8) * 6 + Math.min(topics.length, 5) * 5, 35, 92) / 100;
+  const existingName = existingProfile?.displayName ? `${existingProfile.displayName}, ` : "";
+
+  return {
+    id: createId("analysis"),
+    sessionId: session?.id || "",
+    generatedAt: new Date(now).toISOString(),
+    summary: items.length
+      ? `${existingName}this session points toward ${topTopic}${domainText ? ` across ${domainText}` : ""}. The useful move is to turn that attention into one visible quest and one skill node.`
+      : "No pages were captured. Add a page, selected text, or manual note before using this as a coaching signal.",
+    detectedTopics: topics,
+    interestSignals,
+    archetypeActivity,
+    suggestedQuests,
+    suggestedSkillNodes,
+    nextAction: suggestedQuests[0]?.suggestedNextStep || "Capture one research page, then write the next physical action.",
+    confidence,
+    suggestedProfileUpdates,
+    privacyFlags: session?.privacyFlags || [],
+  };
+}
+
+function detectSessionTopics(items) {
+  const topicMap = [
+    {
+      label: "Chrome extension development",
+      keywords: ["chrome", "extension", "manifest", "mv3", "activetab", "scripting", "service worker"],
+      archetypes: ["Builder", "Scholar"],
+      skill: "Chrome Extension Manifest V3",
+      priority: "Startup",
+    },
+    {
+      label: "Privacy-first product design",
+      keywords: ["privacy", "consent", "local", "redact", "sensitive", "permission", "storage"],
+      archetypes: ["Strategist", "Scholar"],
+      skill: "Consent and data minimization",
+      priority: "Startup",
+    },
+    {
+      label: "Human RPG product design",
+      keywords: ["quest", "rpg", "coach", "profile", "skill tree", "archetype", "human"],
+      archetypes: ["Builder", "Artist"],
+      skill: "Game-like product framing",
+      priority: "Creativity",
+    },
+    {
+      label: "AI tools and agents",
+      keywords: ["ai", "llm", "agent", "chatgpt", "automation", "prompt"],
+      archetypes: ["Builder", "Scholar"],
+      skill: "AI workflow design",
+      priority: "Startup",
+    },
+    {
+      label: "Travel discovery",
+      keywords: ["travel", "country", "itinerary", "hotel", "flight", "restaurant", "events", "map"],
+      archetypes: ["Explorer", "Strategist"],
+      skill: "Local discovery routing",
+      priority: "Creativity",
+      travelNeed: "Events",
+    },
+    {
+      label: "Career exploration",
+      keywords: ["career", "job", "interview", "resume", "salary", "role", "hiring"],
+      archetypes: ["Strategist", "Diplomat"],
+      skill: "Career option mapping",
+      priority: "Career",
+    },
+    {
+      label: "Health and recovery",
+      keywords: ["sleep", "fitness", "health", "energy", "recovery", "habit", "stress"],
+      archetypes: ["Warrior", "Healer"],
+      skill: "Energy floor design",
+      priority: "Health",
+    },
+    {
+      label: "Open-source proof-of-work",
+      keywords: ["github", "repo", "readme", "pull request", "issue", "commit", "deploy"],
+      archetypes: ["Builder", "Strategist"],
+      skill: "Public proof loop",
+      priority: "Startup",
+    },
+  ];
+  const scored = topicMap
+    .map((topic) => {
+      const evidence = items.filter((item) => {
+        const text = captureItemText(item).toLowerCase();
+        return topic.keywords.some((keyword) => text.includes(keyword));
+      });
+      return {
+        ...topic,
+        evidenceItemIds: evidence.map((item) => item.id),
+        confidence: clamp(50 + evidence.length * 12, 0, 94) / 100,
+      };
+    })
+    .filter((topic) => topic.evidenceItemIds.length)
+    .sort((a, b) => b.confidence - a.confidence || b.evidenceItemIds.length - a.evidenceItemIds.length);
+
+  if (scored.length) {
+    return scored.slice(0, 5).map(({ keywords, archetypes, skill, priority, travelNeed, ...topic }) => topic);
+  }
+
+  const domains = topCounts(items.map((item) => item.domain).filter(Boolean), 3);
+  return domains.map(([domain, count]) => ({
+    label: `${domain} research`,
+    evidenceItemIds: items.filter((item) => item.domain === domain).map((item) => item.id),
+    confidence: clamp(45 + count * 10, 45, 82) / 100,
+  }));
+}
+
+function buildSessionArchetypeActivity(topics, items) {
+  const topicText = topics.map((topic) => topic.label).join(" ").toLowerCase();
+  const scores = {
+    Builder: items.length ? 2 : 0,
+    Scholar: topics.length ? 2 : 0,
+    Strategist: 0,
+    Explorer: 0,
+    Artist: 0,
+    Healer: 0,
+    Warrior: 0,
+    Diplomat: 0,
+  };
+
+  if (topicText.includes("extension") || topicText.includes("open-source") || topicText.includes("ai")) scores.Builder += 4;
+  if (topicText.includes("privacy") || topicText.includes("career")) scores.Strategist += 4;
+  if (topicText.includes("travel")) scores.Explorer += 4;
+  if (topicText.includes("rpg") || topicText.includes("design")) scores.Artist += 3;
+  if (topicText.includes("health") || topicText.includes("recovery")) {
+    scores.Healer += 4;
+    scores.Warrior += 2;
+  }
+  if (topicText.includes("career")) scores.Diplomat += 2;
+
+  return Object.entries(scores)
+    .filter(([, score]) => score > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([archetype, score]) => ({
+      archetype,
+      rationale: `Session evidence suggests ${archetype.toLowerCase()} activity across ${topics.length || items.length} signal${topics.length === 1 || items.length === 1 ? "" : "s"}.`,
+      confidence: clamp(48 + score * 8, 50, 90) / 100,
+    }));
+}
+
+function buildSessionSuggestedQuests(topics, items) {
+  const leadTopic = topics[0]?.label || "Captured research";
+  const quests = [
+    {
+      id: createId("quest"),
+      title: `Turn ${leadTopic} into a quest log`,
+      questType: "main",
+      description: "Convert this browsing session into one concrete artifact, decision, or next user-facing step.",
+      suggestedNextStep: "Write one implementation task, one open question, and one visible proof-of-work action.",
+      linkedArchetypes: ["Builder", "Scholar", "Strategist"],
+      linkedTopics: topics.slice(0, 3).map((topic) => topic.label),
+      confidence: topics[0]?.confidence || 0.62,
+    },
+  ];
+
+  if (topics.some((topic) => topic.label.includes("Privacy"))) {
+    quests.push({
+      id: createId("quest"),
+      title: "Privacy review checkpoint",
+      questType: "side",
+      description: "List what was captured, what was refused, and what the user can delete before saving anything permanent.",
+      suggestedNextStep: "Verify the capture stores title, domain, timestamp, and user-approved text only.",
+      linkedArchetypes: ["Strategist", "Scholar"],
+      linkedTopics: ["Privacy-first product design"],
+      confidence: 0.84,
+    });
+  }
+
+  if (items.some((item) => item.selectedText)) {
+    quests.push({
+      id: createId("quest"),
+      title: "Extract the chosen sentence",
+      questType: "daily",
+      description: "Use the selected text as a focused clue instead of letting the whole session sprawl.",
+      suggestedNextStep: "Rewrite the selected text as a single next action.",
+      linkedArchetypes: ["Scholar"],
+      linkedTopics: topics.slice(0, 2).map((topic) => topic.label),
+      confidence: 0.78,
+    });
+  }
+
+  return quests.slice(0, 4);
+}
+
+function buildSessionSkillNodes(topics, items) {
+  const skillByTopic = {
+    "Chrome extension development": "Chrome Extension Manifest V3",
+    "Privacy-first product design": "Consent and data minimization",
+    "Human RPG product design": "Game-like product framing",
+    "AI tools and agents": "AI workflow design",
+    "Travel discovery": "Local discovery routing",
+    "Career exploration": "Career option mapping",
+    "Health and recovery": "Energy floor design",
+    "Open-source proof-of-work": "Public proof loop",
+  };
+
+  const nodes = topics.map((topic) => ({
+    id: createId("skill"),
+    title: skillByTopic[topic.label] || topic.label,
+    category: topic.label.includes("Privacy") ? "Product Skill" : "Research Skill",
+    description: `Unlocked by ${topic.evidenceItemIds.length} captured item${topic.evidenceItemIds.length === 1 ? "" : "s"} in this session.`,
+    evidenceItemIds: topic.evidenceItemIds,
+    confidence: topic.confidence,
+  }));
+
+  if (!nodes.length && items.length) {
+    nodes.push({
+      id: createId("skill"),
+      title: "Session synthesis",
+      category: "Meta Skill",
+      description: "Turn scattered browsing into a concise quest, skill node, and next action.",
+      evidenceItemIds: items.map((item) => item.id),
+      confidence: 0.58,
+    });
+  }
+
+  return nodes.slice(0, 5);
+}
+
+function buildSessionInterestSignals(topics, items) {
+  const domainCounts = topCounts(items.map((item) => item.domain).filter(Boolean), 5);
+  const signals = topics.slice(0, 3).map((topic) => ({
+    label: topic.label,
+    signalType: topic.evidenceItemIds.length > 1 ? "repeated_topic" : "learning",
+    evidenceItemIds: topic.evidenceItemIds,
+    confidence: topic.confidence,
+  }));
+
+  domainCounts
+    .filter(([, count]) => count > 1)
+    .forEach(([domain, count]) => {
+      signals.push({
+        label: `Repeated ${domain} research`,
+        signalType: "deep_reading",
+        evidenceItemIds: items.filter((item) => item.domain === domain).map((item) => item.id),
+        confidence: clamp(50 + count * 10, 50, 86) / 100,
+      });
+    });
+
+  if (items.some((item) => item.selectedText)) {
+    signals.push({
+      label: "User-selected evidence",
+      signalType: "selected_text",
+      evidenceItemIds: items.filter((item) => item.selectedText).map((item) => item.id),
+      confidence: 0.82,
+    });
+  }
+
+  return signals.slice(0, 6);
+}
+
+function buildSessionProfileUpdates(topics, archetypeActivity, quests, items) {
+  const updates = [];
+  topics.slice(0, 3).forEach((topic) => {
+    updates.push({
+      id: createId("suggestion"),
+      type: "interest",
+      label: topic.label,
+      value: `${topic.label} appears in this captured research session.`,
+      evidenceItemIds: topic.evidenceItemIds,
+      confidence: topic.confidence,
+      status: "pending",
+    });
+  });
+  archetypeActivity.slice(0, 2).forEach((activity) => {
+    updates.push({
+      id: createId("suggestion"),
+      type: "archetype_signal",
+      label: `${activity.archetype} activity`,
+      value: activity.rationale,
+      evidenceItemIds: items.map((item) => item.id),
+      confidence: activity.confidence,
+      status: "pending",
+    });
+  });
+  quests.slice(0, 1).forEach((quest) => {
+    updates.push({
+      id: createId("suggestion"),
+      type: "quest",
+      label: quest.title,
+      value: quest.suggestedNextStep,
+      evidenceItemIds: items.map((item) => item.id),
+      confidence: quest.confidence,
+      status: "pending",
+    });
+  });
+  return updates.slice(0, 6);
+}
+
+function buildSessionCaptureSourceSeed(session, analysis) {
+  const usableUpdates = (analysis.suggestedProfileUpdates || []).filter((update) => update.status !== "rejected");
+  const topicLabels = analysis.detectedTopics?.map((topic) => topic.label) || [];
+  const items = session.items || [];
+  const domains = uniqueTextItems(items.map((item) => item.domain)).slice(0, 6);
+  const topicText = topicLabels.join(" ").toLowerCase();
+  const priorities = unique(
+    [
+      topicText.includes("travel") ? "Creativity" : "",
+      topicText.includes("career") ? "Career" : "",
+      topicText.includes("health") ? "Health" : "",
+      topicText.includes("extension") || topicText.includes("ai") || topicText.includes("open-source") ? "Startup" : "",
+      "Study",
+    ].filter(Boolean),
+  ).slice(0, 5);
+  const buildGoals = unique(["Mastery", "Status", topicText.includes("privacy") ? "Service" : "", topicText.includes("travel") ? "Adventure" : ""]).slice(0, 5);
+  const travelNeeds = topicText.includes("travel") ? ["Events", "Culture"] : [];
+  const fields = compactObject({
+    worldIndustry: topicLabels.slice(0, 2).join(" / "),
+    worldCulture: "User-consented research loop, local-first capture, review before memory",
+    worldOpportunities: listText(["Fresh browsing session", ...domains.map((domain) => `${domain} signal`)]),
+    inventoryText: listText(["Captured research session", ...topicLabels.map((topic) => `${topic} notes`)]),
+    evolutionConditions: listText([analysis.nextAction, ...usableUpdates.slice(0, 2).map((update) => update.label)]),
+    blockers: analysis.interestSignals?.some((signal) => signal.signalType === "repeated_topic") ? "Open research loop" : "",
+    travelEventsSeed: topicText.includes("travel") ? analysis.summary : "",
+  });
+
+  return {
+    source: "session-capture",
+    label: "Browser session capture",
+    confidence: analysis.confidence || 0.62,
+    fields,
+    priorities,
+    buildGoals,
+    travelNeeds,
+    seedText: sourceSeedText("Session Capture", sessionCaptureSeedSummary(session, analysis)),
+    signals: [
+      { title: "Captures", value: `${items.length} item${items.length === 1 ? "" : "s"}`, detail: `${domains.length} domain${domains.length === 1 ? "" : "s"}` },
+      { title: "Topics", value: topicLabels.slice(0, 2).join(", ") || "Research", detail: `${Math.round((analysis.confidence || 0.62) * 100)}% confidence` },
+      { title: "Archetype", value: analysis.archetypeActivity?.[0]?.archetype || "Scholar", detail: "Staged, not auto-saved" },
+      { title: "Next action", value: shorten(analysis.nextAction || "Review session", 44), detail: "Quest candidate" },
+      { title: "Privacy", value: session.privacyFlags?.length ? `${session.privacyFlags.length} flag${session.privacyFlags.length === 1 ? "" : "s"}` : "No flags", detail: "Local-only export" },
+    ],
+  };
+}
+
+function sessionCaptureSeedSummary(session, analysis) {
+  const captureLines = (session.items || [])
+    .slice(0, 8)
+    .map((item) => `- ${item.title || item.domain || "Untitled"} (${item.domain || "unknown"}): ${shorten(captureItemText(item), 140)}`)
+    .join("\n");
+
+  return [
+    `session id: ${session.id}`,
+    `status: ${session.status}`,
+    `mode: ${session.mode}`,
+    `summary: ${analysis.summary}`,
+    `topics: ${(analysis.detectedTopics || []).map((topic) => topic.label).join(", ") || "none"}`,
+    `next action: ${analysis.nextAction}`,
+    "captures:",
+    captureLines,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function applySessionCaptureSeed() {
+  const session = state.sessionCapture.activeSession;
+  const analysis = session?.analysis || state.sessionCapture.lastAnalysis;
+  if (!session || !analysis) {
+    setSourceStatus(sessionCaptureStatus, "Analyze a capture session before applying it.", true);
+    return;
+  }
+
+  const sourceSeed = buildSessionCaptureSourceSeed(session, analysis);
+  applySourceSeedToForm(sourceSeed);
+  setSourceStatus(
+    sessionCaptureStatus,
+    `Applied ${sourceSeed.signals.length} session signals at ${Math.round(sourceSeed.confidence * 100)}% confidence.`,
+  );
+}
+
+function exportSessionCaptureJson() {
+  const session = state.sessionCapture.activeSession;
+  if (!session) {
+    setSourceStatus(sessionCaptureStatus, "No capture session to export.", true);
+    return null;
+  }
+  const payload = buildSessionCaptureExport(session);
+  const filename = `questdex-session-${slugify(session.id)}.json`;
+  const serialized = downloadJson(payload, filename);
+  setSourceStatus(sessionCaptureStatus, `Exported ${filename}.`);
+  return serialized;
+}
+
+function exportSessionCaptureMarkdown() {
+  const session = state.sessionCapture.activeSession;
+  if (!session) {
+    setSourceStatus(sessionCaptureStatus, "No capture session to export.", true);
+    return null;
+  }
+  const markdown = exportSessionCaptureMarkdownText(session);
+  const filename = `questdex-session-${slugify(session.id)}.md`;
+  downloadText(markdown, filename, "text/markdown");
+  setSourceStatus(sessionCaptureStatus, `Exported ${filename}.`);
+  return markdown;
+}
+
+function buildSessionCaptureExport(session) {
+  return {
+    schemaVersion: SESSION_CAPTURE_VERSION,
+    app: "QuestDex Coach",
+    type: "SessionCapture",
+    exportedAt: new Date().toISOString(),
+    privacyNote: "User-approved capture export. No cookies, tokens, browser secrets, localStorage, sessionStorage, screenshots, or passive history are included.",
+    session,
+  };
+}
+
+function exportSessionCaptureMarkdownText(session) {
+  const analysis = session.analysis || analyzeCaptureSession(session, state.profile);
+  const topicLines = (analysis.detectedTopics || []).map((topic) => `- ${topic.label} (${Math.round(topic.confidence * 100)}%)`).join("\n");
+  const questLines = (analysis.suggestedQuests || []).map((quest) => `- ${quest.title}: ${quest.suggestedNextStep}`).join("\n");
+  const itemLines = (session.items || [])
+    .map((item) => `- ${item.title || item.domain || "Untitled"} | ${item.domain || "unknown"} | ${item.urlWasStored ? item.url : "URL not stored"}`)
+    .join("\n");
+
+  return `# QuestDex Session Capture
+
+${analysis.summary}
+
+## Topics
+${topicLines || "- No topics detected"}
+
+## Suggested Quests
+${questLines || "- Add more captures before generating quests"}
+
+## Next Action
+${analysis.nextAction}
+
+## Captured Items
+${itemLines || "- No captured items"}
+
+## Privacy
+Local-only export. No cookies, tokens, browser secrets, localStorage, sessionStorage, screenshots, or passive history are included.
+`;
+}
+
+function handleSessionSuggestionAction(event) {
+  const button = event.target?.closest?.("[data-suggestion-action]");
+  if (!button) return;
+  const session = state.sessionCapture.activeSession;
+  const suggestion = session?.analysis?.suggestedProfileUpdates?.find((update) => update.id === button.dataset.suggestionId);
+  if (!suggestion) return;
+
+  suggestion.status = button.dataset.suggestionAction;
+  state.sessionCapture.lastAnalysis = session.analysis;
+  persistSessionCapture();
+  renderSessionCapturePanel();
+}
+
+function renderSessionCapturePanel() {
+  if (!sessionCaptureStatus) return;
+  const session = state.sessionCapture.activeSession;
+  if (session) expireCaptureSessionIfNeeded(session);
+  const analysis = session?.analysis || state.sessionCapture.lastAnalysis;
+
+  renderSessionCaptureStatus(session);
+  renderSessionCaptureItems(session);
+  renderSessionCaptureAnalysis(analysis, session);
+  const hasActive = Boolean(session && session.status === "active");
+  const canPause = Boolean(session && ["active", "paused"].includes(session.status));
+  startCaptureSessionButton.disabled = hasActive;
+  pauseCaptureSessionButton.disabled = !canPause;
+  pauseCaptureSessionButton.textContent = session?.status === "paused" ? "Resume" : "Pause";
+  endCaptureSessionButton.disabled = !session || session.status === "deleted";
+  captureCurrentPageButton.disabled = !hasActive;
+  captureSelectedTextButton.disabled = !hasActive;
+  applySessionCaptureSeedButton.disabled = !analysis;
+  exportSessionCaptureJsonButton.disabled = !session;
+  exportSessionCaptureMarkdownButton.disabled = !session;
+}
+
+function renderSessionCaptureStatus(session) {
+  if (!session) {
+    sessionCaptureStatus.textContent = "No active capture session.";
+    sessionCaptureTimer.textContent = "Idle";
+    hideSessionCaptureWarning();
+    return;
+  }
+  const itemCount = session.items?.length || 0;
+  const flagCount = session.privacyFlags?.length || 0;
+  const label = session.status === "active" ? "Active" : session.status.charAt(0).toUpperCase() + session.status.slice(1);
+  sessionCaptureStatus.textContent = `${label} session with ${itemCount} captured item${itemCount === 1 ? "" : "s"}${flagCount ? ` and ${flagCount} privacy flag${flagCount === 1 ? "" : "s"}` : ""}.`;
+  sessionCaptureTimer.textContent =
+    session.status === "active" ? `${minutesRemaining(session.expiresAt)} min left` : session.status;
+}
+
+function renderSessionCaptureItems(session) {
+  if (!sessionCaptureItems) return;
+  const items = session?.items || [];
+  sessionCaptureItems.innerHTML = items.length
+    ? items
+        .map(
+          (item) => `
+            <article class="capture-item">
+              <span>${escapeHtml(item.type.replace("_", " "))}</span>
+              <strong>${escapeHtml(item.title || item.domain || "Untitled")}</strong>
+              <p>${escapeHtml(item.domain || "No domain")} ${item.repeatCount > 1 ? `| repeated ${item.repeatCount}x` : ""}</p>
+              <small>${escapeHtml(item.urlWasStored ? item.url : "URL not stored")}</small>
+            </article>
+          `,
+        )
+        .join("")
+    : `<div class="capture-empty">No pages captured yet.</div>`;
+}
+
+function renderSessionCaptureAnalysis(analysis, session) {
+  if (!sessionCaptureAnalysis) return;
+  if (!analysis) {
+    sessionCaptureAnalysis.hidden = true;
+    sessionCaptureAnalysis.innerHTML = "";
+    return;
+  }
+
+  sessionCaptureAnalysis.hidden = false;
+  const topics = analysis.detectedTopics || [];
+  const quests = analysis.suggestedQuests || [];
+  const skills = analysis.suggestedSkillNodes || [];
+  const updates = analysis.suggestedProfileUpdates || [];
+
+  sessionCaptureAnalysis.innerHTML = `
+    <div class="session-analysis-top">
+      <div>
+        <p class="eyebrow">Analysis</p>
+        <h4>${escapeHtml(Math.round((analysis.confidence || 0.62) * 100))}% confidence route</h4>
+      </div>
+      <span class="source-badge">${escapeHtml(session?.status || "ready")}</span>
+    </div>
+    <p class="analysis-summary">${escapeHtml(analysis.summary)}</p>
+    <div class="session-analysis-grid">
+      <div>
+        <h5>Topics</h5>
+        ${renderMiniList(topics.map((topic) => `${topic.label} (${Math.round(topic.confidence * 100)}%)`))}
+      </div>
+      <div>
+        <h5>Skill nodes</h5>
+        ${renderMiniList(skills.map((skill) => skill.title))}
+      </div>
+      <div>
+        <h5>Next action</h5>
+        <p>${escapeHtml(analysis.nextAction)}</p>
+      </div>
+    </div>
+    <div class="session-review-list">
+      ${updates
+        .map(
+          (update) => `
+            <article class="session-review-card is-${escapeHtml(update.status)}">
+              <span>${escapeHtml(update.type.replace("_", " "))}</span>
+              <strong>${escapeHtml(update.label)}</strong>
+              <p>${escapeHtml(update.value)}</p>
+              <div class="source-actions">
+                <button class="secondary-button compact-button" type="button" data-suggestion-action="accepted" data-suggestion-id="${escapeHtml(update.id)}">
+                  Accept
+                </button>
+                <button class="secondary-button compact-button" type="button" data-suggestion-action="rejected" data-suggestion-id="${escapeHtml(update.id)}">
+                  Not about me
+                </button>
+              </div>
+            </article>
+          `,
+        )
+        .join("")}
+    </div>
+    <div class="session-analysis-quests">
+      ${quests
+        .map(
+          (quest) => `
+            <article>
+              <span>${escapeHtml(quest.questType)}</span>
+              <strong>${escapeHtml(quest.title)}</strong>
+              <p>${escapeHtml(quest.suggestedNextStep)}</p>
+            </article>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function renderMiniList(items) {
+  return `<ul>${(items.length ? items : ["No signal yet"]).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function showSessionCaptureWarning(message) {
+  if (!sessionCaptureWarning) return;
+  sessionCaptureWarning.hidden = false;
+  sessionCaptureWarning.textContent = message;
+}
+
+function hideSessionCaptureWarning() {
+  if (!sessionCaptureWarning) return;
+  sessionCaptureWarning.hidden = true;
+  sessionCaptureWarning.textContent = "";
+}
+
+function clearSessionCaptureDraft() {
+  [capturePageTitleInput, capturePageUrlInput, captureSelectedTextValueInput, captureManualNoteInput].forEach((field) => {
+    if (field) field.value = "";
+  });
+}
+
+function persistSessionCapture() {
+  localStorage.setItem(SESSION_CAPTURE_STORAGE_KEY, JSON.stringify(state.sessionCapture));
+}
+
+function restoreSessionCapture() {
+  const saved = localStorage.getItem(SESSION_CAPTURE_STORAGE_KEY);
+  if (!saved) return;
+
+  try {
+    const parsed = JSON.parse(saved);
+    state.sessionCapture = {
+      activeSession: parsed.activeSession || null,
+      lastAnalysis: parsed.lastAnalysis || parsed.activeSession?.analysis || null,
+    };
+  } catch (error) {
+    console.warn("Unable to restore session capture state", error);
+  }
+}
+
+function captureItemText(item) {
+  return [item.title, item.domain, item.url, item.selectedText, item.pageSummary, item.manualNote]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function minutesRemaining(expiresAt, now = new Date()) {
+  const remaining = Math.ceil((new Date(expiresAt).getTime() - new Date(now).getTime()) / 60000);
+  return Math.max(0, remaining);
 }
 
 function handleIntakeSubmit(event) {
@@ -2233,6 +3297,20 @@ function downloadJson(payload, filename) {
   return serialized;
 }
 
+function downloadText(text, filename, type = "text/plain") {
+  if (typeof Blob === "undefined" || !document.createElement || typeof URL === "undefined") {
+    return text;
+  }
+
+  const blob = new Blob([text], { type });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  return text;
+}
+
 function persistProfile() {
   localStorage.setItem(
     STORAGE_KEY,
@@ -2838,6 +3916,10 @@ function slugify(text) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
     .slice(0, 42) || "trainer";
+}
+
+function createId(prefix) {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function unique(items) {

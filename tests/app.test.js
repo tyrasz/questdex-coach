@@ -283,6 +283,91 @@ test("GitHub source seed turns repos into proof-of-work signals", () => {
   assert.ok(seed.signals.some((signal) => signal.title === "Top languages"));
 });
 
+test("session capture stores user-approved browsing metadata and blocks sensitive pages", () => {
+  const app = loadAppContext();
+  const session = app.createCaptureSession(
+    {
+      durationMinutes: 15,
+      mode: "standard",
+      storeFullUrl: false,
+      enableSelectedTextCapture: true,
+    },
+    new Date("2026-05-09T09:00:00.000Z"),
+  );
+  const accepted = app.captureItemIntoSession(
+    session,
+    {
+      title: "Chrome extension activeTab docs",
+      url: "https://developer.chrome.com/docs/extensions/develop/concepts/activeTab?utm_source=test",
+      selectedText: "Use activeTab for user-invoked access only.",
+    },
+    "selected_text",
+    new Date("2026-05-09T09:02:00.000Z"),
+  );
+  const blocked = app.captureItemIntoSession(
+    session,
+    {
+      title: "Bank login",
+      url: "https://bank.example.com/login",
+      selectedText: "one-time code 123456",
+    },
+    "selected_text",
+    new Date("2026-05-09T09:03:00.000Z"),
+  );
+
+  assert.equal(accepted.blocked, undefined);
+  assert.equal(session.items.length, 1);
+  assert.equal(session.items[0].domain, "developer.chrome.com");
+  assert.equal(session.items[0].urlWasStored, false);
+  assert.match(session.items[0].selectedText, /activeTab/);
+  assert.equal(blocked.blocked, true);
+  assert.equal(session.privacyFlags.length, 1);
+});
+
+test("session capture analyzer creates topics, quests, skill nodes, and profile seed", () => {
+  const app = loadAppContext();
+  const session = app.createCaptureSession(
+    {
+      mode: "page_summary",
+      enablePageSummary: true,
+      storeFullUrl: true,
+    },
+    new Date("2026-05-09T09:00:00.000Z"),
+  );
+
+  app.captureItemIntoSession(session, {
+    title: "Manifest V3 service worker migration",
+    url: "https://developer.chrome.com/docs/extensions/develop/migrate/to-service-workers?utm_source=test",
+    manualNote: "Need a privacy-first Chrome extension with activeTab, scripting, local storage, and no passive monitoring.",
+  });
+  app.captureItemIntoSession(session, {
+    title: "Human RPG session capture PRD",
+    url: "https://questdex.local/session-capture-prd",
+    selectedText: "Convert research into quests, skill-tree nodes, next actions, and staged profile updates.",
+  }, "selected_text");
+
+  const analysis = app.analyzeCaptureSession(session, { displayName: "Mira" }, new Date("2026-05-09T09:20:00.000Z"));
+  session.analysis = analysis;
+  const seed = app.buildSessionCaptureSourceSeed(session, analysis);
+  const markdown = app.exportSessionCaptureMarkdownText(session);
+
+  assert.ok(analysis.detectedTopics.some((topic) => topic.label === "Chrome extension development"));
+  assert.ok(analysis.detectedTopics.some((topic) => topic.label === "Privacy-first product design"));
+  assert.ok(
+    analysis.suggestedQuests.some((quest) =>
+      quest.linkedTopics.includes("Chrome extension development"),
+    ),
+  );
+  assert.ok(analysis.suggestedSkillNodes.some((skill) => skill.title === "Chrome Extension Manifest V3"));
+  assert.ok(analysis.suggestedProfileUpdates.every((update) => update.status === "pending"));
+  assert.equal(seed.source, "session-capture");
+  assert.ok(seed.priorities.includes("Startup"));
+  assert.ok(seed.buildGoals.includes("Service"));
+  assert.match(seed.fields.inventoryText, /Chrome extension development notes/);
+  assert.match(markdown, /Local-only export/);
+  assert.doesNotMatch(session.items[0].url, /utm_source/);
+});
+
 test("buildQuests includes stabilizing quests for known blockers", () => {
   const app = loadAppContext();
   const profile = app.buildProfile(

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QuestDex Coach</title>
-    <link rel="stylesheet" href="./styles.css?v=daily-nudge" />
+    <link rel="stylesheet" href="./styles.css?v=session-capture" />
   </head>
   <body>
     <div class="app-shell">
@@ -330,6 +330,141 @@
               </div>
 
               <div id="sourceSignalBoard" class="source-signal-board" hidden></div>
+
+              <div class="session-capture-box" aria-labelledby="sessionCaptureTitle">
+                <div class="source-board-heading">
+                  <div>
+                    <p class="eyebrow">Browser session</p>
+                    <h4 id="sessionCaptureTitle">Session capture</h4>
+                  </div>
+                  <span class="source-badge">Local-only</span>
+                </div>
+
+                <div class="session-capture-status-row">
+                  <p id="sessionCaptureStatus" class="source-status">No active capture session.</p>
+                  <span id="sessionCaptureTimer" class="capture-timer">Idle</span>
+                </div>
+
+                <div class="capture-config-grid">
+                  <label>
+                    Duration
+                    <select id="captureDuration">
+                      <option value="5">5 minutes</option>
+                      <option value="15">15 minutes</option>
+                      <option value="30" selected>30 minutes</option>
+                      <option value="60">60 minutes</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    Capture mode
+                    <select id="captureMode">
+                      <option value="standard">Title + domain</option>
+                      <option value="domain_only">Domain only</option>
+                      <option value="selected_text">Selected text</option>
+                      <option value="page_summary">Page summary</option>
+                    </select>
+                  </label>
+
+                  <label class="capture-check">
+                    <input id="captureStoreUrl" type="checkbox" />
+                    <span>Store full URL</span>
+                  </label>
+
+                  <label class="capture-check">
+                    <input id="captureEnableSelectedText" type="checkbox" checked />
+                    <span>Selected text</span>
+                  </label>
+
+                  <label class="capture-check">
+                    <input id="captureEnablePageSummary" type="checkbox" />
+                    <span>Page summary</span>
+                  </label>
+                </div>
+
+                <div class="source-actions">
+                  <button class="primary-button compact-button" type="button" id="startCaptureSession">
+                    Start session
+                  </button>
+                  <button class="secondary-button compact-button" type="button" id="pauseCaptureSession">
+                    Pause
+                  </button>
+                  <button class="secondary-button compact-button" type="button" id="endCaptureSession">
+                    End & analyze
+                  </button>
+                  <button class="secondary-button compact-button" type="button" id="loadCaptureDemo">
+                    Load demo
+                  </button>
+                  <button class="secondary-button compact-button" type="button" id="deleteCaptureSession">
+                    Delete
+                  </button>
+                </div>
+
+                <div class="capture-entry-grid">
+                  <label>
+                    Page title
+                    <input
+                      id="capturePageTitle"
+                      type="text"
+                      placeholder="Manifest V3 activeTab documentation"
+                      autocomplete="off"
+                    />
+                  </label>
+
+                  <label>
+                    URL or domain
+                    <input
+                      id="capturePageUrl"
+                      type="text"
+                      placeholder="https://developer.chrome.com/docs/extensions/develop/concepts/activeTab"
+                      autocomplete="off"
+                    />
+                  </label>
+
+                  <label>
+                    Selected text
+                    <textarea
+                      id="captureSelectedTextValue"
+                      rows="3"
+                      placeholder="Paste only the lines you want the coach to use."
+                    ></textarea>
+                  </label>
+
+                  <label>
+                    Manual note or summary
+                    <textarea
+                      id="captureManualNote"
+                      rows="3"
+                      placeholder="Researching privacy-first browser capture for QuestDex."
+                    ></textarea>
+                  </label>
+                </div>
+
+                <div class="source-actions">
+                  <button class="secondary-button compact-button" type="button" id="captureCurrentPage">
+                    Capture page
+                  </button>
+                  <button class="secondary-button compact-button" type="button" id="captureSelectedText">
+                    Capture text
+                  </button>
+                </div>
+
+                <div id="sessionCaptureWarning" class="capture-warning" hidden></div>
+                <div id="sessionCaptureItems" class="capture-items"></div>
+                <div id="sessionCaptureAnalysis" class="session-analysis-board" hidden></div>
+
+                <div class="source-actions capture-output-actions">
+                  <button class="primary-button compact-button" type="button" id="applySessionCaptureSeed">
+                    Apply session signals
+                  </button>
+                  <button class="secondary-button compact-button" type="button" id="exportSessionCaptureJson">
+                    Export JSON
+                  </button>
+                  <button class="secondary-button compact-button" type="button" id="exportSessionCaptureMarkdown">
+                    Export Markdown
+                  </button>
+                </div>
+              </div>
 
               <details class="manual-seed-box">
                 <summary>Manual seed</summary>
@@ -689,6 +824,6 @@
       </main>
     </div>
 
-    <script src="./app.js?v=daily-nudge"></script>
+    <script src="./app.js?v=session-capture"></script>
   </body>
 </html>

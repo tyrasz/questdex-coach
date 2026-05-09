@@ -496,6 +496,222 @@ textarea::placeholder {
   text-transform: none;
 }
 
+.session-capture-box {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.session-capture-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.capture-timer {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(36, 87, 214, 0.08);
+  color: var(--blue);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.capture-config-grid,
+.capture-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.capture-entry-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.capture-check {
+  align-content: end;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #cbd3df;
+  border-radius: 8px;
+  background: #fbfcff;
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.capture-check input {
+  width: 18px;
+  min-height: 18px;
+  padding: 0;
+  accent-color: var(--teal);
+}
+
+.capture-warning {
+  padding: 11px 12px;
+  border: 1px solid rgba(217, 93, 57, 0.28);
+  border-radius: 8px;
+  background: rgba(217, 93, 57, 0.08);
+  color: var(--coral);
+  font-size: 0.86rem;
+  font-weight: 850;
+  line-height: 1.4;
+}
+
+.capture-items {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.capture-empty,
+.capture-item {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcff;
+}
+
+.capture-empty {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.capture-item {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+
+.capture-item span,
+.capture-item small {
+  color: var(--quiet);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.capture-item strong {
+  color: var(--ink);
+  font-size: 0.94rem;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.capture-item p,
+.capture-item small {
+  margin: 0;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.session-analysis-board {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(36, 87, 214, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(36, 87, 214, 0.06), transparent 55%),
+    #fbfcff;
+}
+
+.session-analysis-top {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.session-analysis-top h4,
+.session-analysis-grid h5 {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.analysis-summary {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.session-analysis-grid,
+.session-review-list,
+.session-analysis-quests {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.session-analysis-grid > *,
+.session-review-card,
+.session-analysis-quests article {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.session-analysis-grid ul {
+  display: grid;
+  gap: 7px;
+  margin: 9px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.session-analysis-grid p,
+.session-review-card p,
+.session-analysis-quests p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.42;
+}
+
+.session-review-card,
+.session-analysis-quests article {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.session-review-card > span,
+.session-analysis-quests span {
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(0, 140, 118, 0.1);
+  color: var(--teal);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.session-review-card.is-accepted {
+  border-color: rgba(0, 140, 118, 0.42);
+}
+
+.session-review-card.is-rejected {
+  opacity: 0.62;
+}
+
+.capture-output-actions {
+  padding-top: 2px;
+}
+
 .github-highlights {
   display: flex;
   flex-wrap: wrap;
@@ -1350,6 +1566,12 @@ textarea::placeholder {
   .seed-grid,
   .source-lanes,
   .source-signal-grid,
+  .capture-config-grid,
+  .capture-entry-grid,
+  .capture-items,
+  .session-analysis-grid,
+  .session-review-list,
+  .session-analysis-quests,
   .nudge-controls,
   .rpg-grid,
   .rpg-grid.two-column,

@@ -29,8 +29,9 @@ The tests use Node's built-in test runner and a small mocked browser environment
 ## Current MVP
 
 - Survey for life stage, desired evolution, priorities, blockers, coaching style, and baseline stats
-- Data Sources panel for ChatGPT profile JSON, public GitHub repo scans, and manual seed data
+- Data Sources panel for ChatGPT profile JSON, public GitHub repo scans, session capture, and manual seed data
 - Public GitHub import that maps repos, languages, topics, stars, forks, and recent activity into proof-of-work signals
+- Privacy-first Session Capture flow for bounded, user-approved browsing/research signals with sensitive-page blocking, staged profile updates, and JSON/Markdown export
 - Optional seed data through paste or file upload (`.txt`, `.md`, `.json`, `.csv`)
 - Travel side-quest setup for destination, trip mode, needs, wants, whimsy level, and daily event clues
 - Generated profile with primary type, secondary type, priorities, blockers, and stat bars
@@ -46,6 +47,7 @@ The tests use Node's built-in test runner and a small mocked browser environment
 
 - Add real authentication and a database for long-term memory
 - Add a secure GitHub OAuth callback for private repo metadata without storing browser tokens
+- Turn Session Capture into a Chrome Manifest V3 extension using `activeTab`, `scripting`, `storage`, and a local-only popup flow
 - Summarize uploaded seed data server-side before storing it
 - Connect the coach console to an LLM
 - Add daily check-ins and notification scheduling
