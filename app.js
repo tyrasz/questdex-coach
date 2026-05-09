@@ -4,6 +4,29 @@ const ENCRYPTED_SOUL_VERSION = 1;
 const SOUL_ANCHOR_VERSION = 1;
 const SOUL_KDF_ITERATIONS = 150000;
 
+const priorityOptions = ["Career", "Study", "Health", "Social", "Money", "Creativity", "Startup", "Recovery"];
+const buildGoalOptions = [
+  "Wealth",
+  "Freedom",
+  "Mastery",
+  "Power",
+  "Love",
+  "Adventure",
+  "Peace",
+  "Service",
+  "Status",
+  "Creativity",
+];
+const travelNeedOptions = ["Food", "Culture", "Nature", "Events", "Quiet", "Social", "Budget", "Accessibility"];
+const lifeStageOptions = [
+  "Student",
+  "Early-career builder",
+  "Founder",
+  "Career transition",
+  "Recovery and reset",
+  "Explorer",
+];
+
 const state = {
   selectedPriorities: new Set(["Career", "Health"]),
   selectedBuildGoals: new Set(["Freedom", "Mastery"]),
@@ -246,9 +269,80 @@ const demoTravelEvents = `sample local clues:
 - rainy afternoon window
 - late-night transit is easier from central stations`;
 
+const chatGptSeedPrompt = `Create a QuestDex profile seed for me from what you know in this conversation.
+Return JSON only, with this shape:
+{
+  "displayName": "string",
+  "lifeStage": "Student | Early-career builder | Founder | Career transition | Recovery and reset | Explorer",
+  "desiredEvolution": "one sentence",
+  "buildGoals": ["Freedom", "Mastery"],
+  "priorities": ["Career", "Health"],
+  "blockers": ["short blocker"],
+  "worldContext": {
+    "location": "current arena",
+    "industry": "domain or guild",
+    "culture": "terrain rules",
+    "constraints": ["debuff"],
+    "opportunities": ["buff"]
+  },
+  "party": ["mentor, ally, collaborator, community"],
+  "inventory": ["skills, tools, credentials, assets"],
+  "evolutionConditions": ["specific condition to evolve"],
+  "travel": {
+    "destination": "",
+    "needs": ["Food", "Quiet"],
+    "wants": ["curiosities"],
+    "events": ["local clues"]
+  },
+  "notes": ["important context"]
+}`;
+
+const demoChatGptSeed = JSON.stringify(
+  {
+    displayName: "Mira",
+    lifeStage: "Founder",
+    desiredEvolution:
+      "Become a trusted AI travel builder who ships useful tools, talks to real users, and protects recovery time.",
+    buildGoals: ["Freedom", "Mastery", "Adventure", "Service"],
+    priorities: ["Startup", "Career", "Creativity", "Health"],
+    blockers: ["Overplanning", "Avoiding outreach", "Energy dips after travel"],
+    worldContext: {
+      location: "Singapore hackathon floor with Seoul as a travel test map",
+      industry: "AI travel tools and personal operating systems",
+      culture: "Fast demos, public proof, mentor feedback, and user interviews",
+      constraints: ["Weekend deadline", "Limited backend", "Low energy after lunch"],
+      opportunities: ["GitHub Pages demo", "Mentor access", "Travel side-quest data", "AI automation"],
+    },
+    party: ["Hackathon teammates", "Potential travelers", "Mentors", "Online builders"],
+    inventory: ["QuestDex prototype", "GitHub repo", "Static deploy", "Soul Capsule export", "Product narrative"],
+    evolutionConditions: ["Interview two travelers", "Ship a public demo", "Write a sharper README"],
+    travel: {
+      destination: "Seoul, South Korea",
+      needs: ["Food", "Quiet", "Events"],
+      wants: ["indie bookstores", "street markets", "riverside walks", "live music"],
+      events: ["rain after 5pm", "small jazz set", "evening market near transit"],
+    },
+    notes: ["Prefers short sprints", "Needs recovery-aware routing", "Gets momentum from visible demos"],
+  },
+  null,
+  2,
+);
+
 const form = document.querySelector("#intakeForm");
 const seedFile = document.querySelector("#seedFile");
 const seedPreview = document.querySelector("#seedPreview");
+const chatGptSeedInput = document.querySelector("#chatgptSeedInput");
+const copyChatGptPromptButton = document.querySelector("#copyChatGptPrompt");
+const loadChatGptExampleButton = document.querySelector("#loadChatGptExample");
+const applyChatGptSeedButton = document.querySelector("#applyChatGptSeed");
+const chatGptSeedStatus = document.querySelector("#chatgptSeedStatus");
+const githubUsernameInput = document.querySelector("#githubUsername");
+const analyzeGithubButton = document.querySelector("#analyzeGithub");
+const githubImportStatus = document.querySelector("#githubImportStatus");
+const githubRepoHighlights = document.querySelector("#githubRepoHighlights");
+const githubOAuthButton = document.querySelector("#githubOAuthButton");
+const githubOAuthStatus = document.querySelector("#githubOAuthStatus");
+const sourceSignalBoard = document.querySelector("#sourceSignalBoard");
 const loadDemoDataButton = document.querySelector("#loadDemoData");
 const generateQuestDexButton = document.querySelector("#generateQuestDex");
 const dashboard = document.querySelector("#dashboard");
@@ -275,6 +369,11 @@ function init() {
   setupChips();
 
   seedFile.addEventListener("change", handleSeedFile);
+  copyChatGptPromptButton.addEventListener("click", copyChatGptPrompt);
+  loadChatGptExampleButton.addEventListener("click", loadChatGptExample);
+  applyChatGptSeedButton.addEventListener("click", applyChatGptSeed);
+  analyzeGithubButton.addEventListener("click", analyzeGithubSource);
+  githubOAuthButton.addEventListener("click", explainGithubOAuthPath);
   loadDemoDataButton.addEventListener("click", loadDemoSeed);
   generateQuestDexButton.addEventListener("click", handleGenerateClick);
   form.addEventListener("submit", handleIntakeSubmit);
@@ -372,6 +471,352 @@ function renderSeedPreview(seed, label) {
     <span>${seed.length.toLocaleString()} characters analyzed.</span>
     <span>${escapeHtml(insights.slice(0, 2).join(" "))}</span>
   `;
+}
+
+async function copyChatGptPrompt() {
+  try {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      throw new Error("Clipboard is not available in this browser.");
+    }
+    await navigator.clipboard.writeText(chatGptSeedPrompt);
+    setSourceStatus(chatGptSeedStatus, "Prompt copied. Paste the JSON result back here.");
+  } catch (error) {
+    setSourceStatus(chatGptSeedStatus, error.message || "Unable to copy prompt.", true);
+  }
+}
+
+function loadChatGptExample() {
+  chatGptSeedInput.value = demoChatGptSeed;
+  const sourceSeed = buildChatGptSourceSeed(demoChatGptSeed);
+  renderSourceSignalBoard(sourceSeed);
+  setSourceStatus(chatGptSeedStatus, "Example seed loaded. Apply it to populate the build.");
+}
+
+function applyChatGptSeed() {
+  try {
+    const sourceSeed = buildChatGptSourceSeed(chatGptSeedInput.value);
+    applySourceSeedToForm(sourceSeed);
+    setSourceStatus(
+      chatGptSeedStatus,
+      `Applied ${sourceSeed.signals.length} ChatGPT signals at ${Math.round(sourceSeed.confidence * 100)}% confidence.`,
+    );
+  } catch (error) {
+    setSourceStatus(chatGptSeedStatus, error.message || "Unable to read this ChatGPT seed.", true);
+  }
+}
+
+async function analyzeGithubSource() {
+  const username = sanitizeGithubUsername(githubUsernameInput.value);
+  if (!username) {
+    setSourceStatus(githubImportStatus, "Enter a GitHub username.", true);
+    return;
+  }
+  if (typeof fetch === "undefined") {
+    setSourceStatus(githubImportStatus, "This browser cannot fetch GitHub data.", true);
+    return;
+  }
+
+  setSourceStatus(githubImportStatus, "Scanning public repos...");
+  analyzeGithubButton.disabled = true;
+
+  try {
+    const [user, repos] = await Promise.all([
+      fetchGithubJson(`https://api.github.com/users/${encodeURIComponent(username)}`),
+      fetchGithubJson(`https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=50&sort=updated`),
+    ]);
+    const sourceSeed = buildGithubSourceSeed(user, repos);
+    applySourceSeedToForm(sourceSeed);
+    renderGithubHighlights(sourceSeed, repos);
+    setSourceStatus(
+      githubImportStatus,
+      `Analyzed ${repos.length} public repos. Profile fields were updated from real proof-of-work.`,
+    );
+  } catch (error) {
+    setSourceStatus(githubImportStatus, error.message || "Unable to analyze this GitHub profile.", true);
+  } finally {
+    analyzeGithubButton.disabled = false;
+  }
+}
+
+function explainGithubOAuthPath() {
+  setSourceStatus(
+    githubOAuthStatus,
+    "Private repo OAuth is ready for a secure callback layer. This static demo will not request or store GitHub tokens in the browser.",
+  );
+}
+
+async function fetchGithubJson(url) {
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/vnd.github+json",
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) throw new Error("GitHub user was not found.");
+    if (response.status === 403) throw new Error("GitHub rate limit reached. Try again later or use OAuth in the next build.");
+    throw new Error(`GitHub returned ${response.status}.`);
+  }
+
+  return response.json();
+}
+
+function buildChatGptSourceSeed(rawInput) {
+  const rawText = String(rawInput || "").trim();
+  if (!rawText) throw new Error("Paste a ChatGPT seed first.");
+
+  const payload = parseSourceJson(rawText);
+  const fields = {};
+  const sourceText = payload ? JSON.stringify(payload, null, 2) : rawText;
+
+  if (payload) {
+    fields.displayName = firstString(payload, ["displayName", "name", "profile.name", "user.name"]);
+    fields.lifeStage = normalizeLifeStage(firstString(payload, ["lifeStage", "stage", "profile.lifeStage"]));
+    fields.desiredEvolution =
+      firstString(payload, ["desiredEvolution", "evolution", "futureSelf", "profile.desiredEvolution"]) ||
+      sentenceFromList(firstList(payload, ["goals", "mainQuest", "quests.main"]));
+    fields.blockers = listText(firstList(payload, ["blockers", "constraints", "debuffs", "weaknesses"]));
+    fields.worldLocation = firstString(payload, ["worldLocation", "world.location", "worldContext.location"]);
+    fields.worldIndustry = firstString(payload, ["worldIndustry", "world.industry", "worldContext.industry"]);
+    fields.worldCulture = firstString(payload, ["worldCulture", "world.culture", "worldContext.culture"]);
+    fields.worldConstraints = listText(firstList(payload, ["worldConstraints", "world.constraints", "worldContext.constraints"]));
+    fields.worldOpportunities = listText(
+      firstList(payload, ["worldOpportunities", "world.opportunities", "worldContext.opportunities"]),
+    );
+    fields.partyText = listText(firstList(payload, ["party", "relationships", "network", "team"]));
+    fields.inventoryText = listText(firstList(payload, ["inventory", "skills", "tools", "assets", "credentials"]));
+    fields.evolutionConditions = listText(
+      firstList(payload, ["evolutionConditions", "conditions", "evolution.triggers"]),
+    );
+    fields.travelDestination = firstString(payload, ["travel.destination", "destination"]);
+    fields.travelNeedsText = listText(firstList(payload, ["travel.needs", "travelNeeds"]));
+    fields.travelWantsText = listText(firstList(payload, ["travel.wants", "travel.curiosities", "travelWants"]));
+    fields.travelEventsSeed = listText(firstList(payload, ["travel.events", "events", "localClues"]));
+  } else {
+    fields.desiredEvolution = firstLabeledText(rawText, ["desired evolution", "future self", "goal"]);
+    fields.blockers = firstLabeledText(rawText, ["blockers", "constraints", "debuffs"]);
+    fields.worldOpportunities = firstLabeledText(rawText, ["opportunities", "buffs"]);
+    fields.inventoryText = firstLabeledText(rawText, ["inventory", "skills", "tools"]);
+    fields.partyText = firstLabeledText(rawText, ["party", "network", "relationships"]);
+  }
+
+  const textForInference = `${sourceText} ${Object.values(fields).join(" ")}`.toLowerCase();
+  const priorities = sanitizeOptionList(
+    payload ? firstList(payload, ["priorities", "questDomains", "domains"]) : inferPriorities(textForInference),
+    priorityOptions,
+  );
+  const buildGoals = sanitizeOptionList(
+    payload ? firstList(payload, ["buildGoals", "values", "optimizingFor"]) : inferBuildGoals(textForInference),
+    buildGoalOptions,
+  );
+  const travelNeeds = sanitizeOptionList(
+    payload ? firstList(payload, ["travel.needs", "travelNeeds"]) : inferTravelNeeds(textForInference),
+    travelNeedOptions,
+  );
+
+  return {
+    source: "chatgpt",
+    label: "ChatGPT memory seed",
+    confidence: payload ? 0.86 : 0.62,
+    fields: compactObject(fields),
+    priorities,
+    buildGoals,
+    travelNeeds,
+    seedText: sourceSeedText("ChatGPT", sourceText),
+    signals: buildSourceSignals("ChatGPT", compactObject(fields), priorities, buildGoals, travelNeeds),
+  };
+}
+
+function buildGithubSourceSeed(user, repos, now = new Date()) {
+  if (!Array.isArray(repos)) throw new Error("GitHub repos response was not readable.");
+
+  const usableRepos = repos.filter((repo) => repo && !repo.archived).slice(0, 50);
+  const originalRepos = usableRepos.filter((repo) => !repo.fork);
+  const languages = topCounts(usableRepos.map((repo) => repo.language).filter(Boolean), 6);
+  const topics = topCounts(usableRepos.flatMap((repo) => repo.topics || []), 8);
+  const totalStars = usableRepos.reduce((sum, repo) => sum + Number(repo.stargazers_count || 0), 0);
+  const totalForks = usableRepos.reduce((sum, repo) => sum + Number(repo.forks_count || 0), 0);
+  const recentRepos = usableRepos.filter((repo) => daysBetween(now, repo.pushed_at || repo.updated_at) <= 180);
+  const topRepos = [...usableRepos]
+    .sort((a, b) => Number(b.stargazers_count || 0) - Number(a.stargazers_count || 0))
+    .slice(0, 5);
+  const activeRepos = recentRepos.slice(0, 5);
+  const repoNames = uniqueTextItems([...topRepos, ...activeRepos].map((repo) => repo.name)).slice(0, 6);
+  const repoDescriptions = usableRepos
+    .map((repo) => [repo.name, repo.description, repo.language, ...(repo.topics || [])].filter(Boolean).join(" "))
+    .join("\n");
+  const repoText = `${user?.bio || ""} ${repoDescriptions}`.toLowerCase();
+  const languageNames = languages.map(([language]) => language);
+  const topicNames = topics.map(([topic]) => topic);
+  const productSignals = uniqueTextItems([...topicNames, ...languageNames]).slice(0, 8);
+  const priorities = unique([
+    "Career",
+    usableRepos.length >= 3 ? "Startup" : "",
+    repoText.includes("design") || repoText.includes("creative") ? "Creativity" : "",
+    repoText.includes("learn") || repoText.includes("research") ? "Study" : "",
+  ]).slice(0, 4);
+  const buildGoals = unique([
+    "Mastery",
+    "Status",
+    totalStars > 0 || totalForks > 0 ? "Service" : "",
+    repoText.includes("travel") || repoText.includes("map") ? "Adventure" : "",
+    repoText.includes("art") || repoText.includes("design") ? "Creativity" : "",
+  ]).slice(0, 5);
+  const fields = compactObject({
+    displayName: user?.name || user?.login || "",
+    worldLocation: user?.location || "",
+    worldIndustry: inferGithubIndustry(productSignals, repoText),
+    worldCulture: "Open-source, public proof-of-work, asynchronous builder network",
+    worldOpportunities: listText(
+      uniqueTextItems([
+        `${usableRepos.length} public repos`,
+        `${originalRepos.length} original repos`,
+        `${recentRepos.length} recently updated repos`,
+        totalStars ? `${totalStars} public stars` : "",
+        languageNames.length ? `${languageNames.slice(0, 3).join(", ")} experience` : "",
+      ]),
+    ),
+    inventoryText: listText(
+      uniqueTextItems([
+        "GitHub portfolio",
+        ...languageNames.map((language) => `${language} projects`),
+        ...repoNames.map((name) => `${name} repo`),
+      ]).slice(0, 8),
+    ),
+    partyText: listText(uniqueTextItems(["Open-source users", "repo collaborators", "technical reviewers"])),
+    evolutionConditions: listText(
+      uniqueTextItems([
+        "Turn the strongest repo into a demo story",
+        "Write one sharper README",
+        "Ask two users what the repo should do next",
+      ]),
+    ),
+  });
+
+  return {
+    source: "github",
+    label: `${user?.login || "GitHub"} repo scan`,
+    confidence: clamp((usableRepos.length ? 52 : 28) + Math.min(usableRepos.length, 12) * 3 + Math.min(totalStars, 40), 30, 94) / 100,
+    fields,
+    priorities,
+    buildGoals,
+    travelNeeds: [],
+    seedText: sourceSeedText("GitHub", githubSeedSummary(user, usableRepos, languages, topics, recentRepos, totalStars)),
+    signals: [
+      { title: "Repos", value: `${usableRepos.length} public`, detail: `${originalRepos.length} original` },
+      { title: "Top languages", value: languageNames.slice(0, 3).join(", ") || "Unspecified", detail: "Skill inventory" },
+      { title: "Recent motion", value: `${recentRepos.length} active`, detail: "Updated within 180 days" },
+      { title: "Reputation", value: `${totalStars} stars`, detail: `${totalForks} forks` },
+      { title: "Build hint", value: buildGoals.join(", "), detail: priorities.join(", ") },
+    ],
+  };
+}
+
+function applySourceSeedToForm(sourceSeed) {
+  Object.entries(sourceSeed.fields || {}).forEach(([name, value]) => {
+    applyFieldValue(name, value);
+  });
+  sourceSeed.priorities?.forEach((priority) => state.selectedPriorities.add(priority));
+  sourceSeed.buildGoals?.forEach((goal) => state.selectedBuildGoals.add(goal));
+  sourceSeed.travelNeeds?.forEach((need) => state.selectedTravelNeeds.add(need));
+  appendSeedText(sourceSeed.seedText);
+  syncChipSelections();
+  renderSourceSignalBoard(sourceSeed);
+  renderSeedPreview(form.elements.seedText.value, sourceSeed.label);
+}
+
+function applyFieldValue(name, value) {
+  const field = form.elements[name];
+  const cleanValue = String(value || "").trim();
+  if (!field || !cleanValue) return;
+
+  if (field.tagName === "SELECT") {
+    const optionValues = Array.from(field.options || []).map((option) => option.value);
+    if (optionValues.includes(cleanValue)) field.value = cleanValue;
+    return;
+  }
+
+  const appendFields = new Set([
+    "blockers",
+    "worldConstraints",
+    "worldOpportunities",
+    "partyText",
+    "inventoryText",
+    "evolutionConditions",
+    "travelNeedsText",
+    "travelWantsText",
+    "travelEventsSeed",
+  ]);
+  if (appendFields.has(name)) {
+    field.value = mergeTextBlock(field.value, cleanValue);
+    return;
+  }
+
+  if (!field.value.trim()) field.value = cleanValue;
+}
+
+function appendSeedText(seedText) {
+  if (!seedText) return;
+  const seedField = form.elements.seedText;
+  seedField.value = mergeTextBlock(seedField.value, seedText);
+}
+
+function syncChipSelections() {
+  const chipStores = {
+    priorities: state.selectedPriorities,
+    buildGoals: state.selectedBuildGoals,
+    travelNeeds: state.selectedTravelNeeds,
+  };
+
+  document.querySelectorAll("[data-chip-group] button").forEach((chip) => {
+    const group = chip.closest("[data-chip-group]")?.dataset.chipGroup;
+    const store = chipStores[group];
+    if (!store) return;
+    chip.classList.toggle("is-selected", store.has(chip.dataset.value));
+  });
+}
+
+function renderSourceSignalBoard(sourceSeed) {
+  if (!sourceSignalBoard) return;
+  sourceSignalBoard.hidden = false;
+  sourceSignalBoard.innerHTML = `
+    <div class="source-board-heading">
+      <div>
+        <p class="eyebrow">Imported signals</p>
+        <h4>${escapeHtml(sourceSeed.label)}</h4>
+      </div>
+      <span class="source-badge">${Math.round(sourceSeed.confidence * 100)}% confidence</span>
+    </div>
+    <div class="source-signal-grid">
+      ${sourceSeed.signals
+        .map(
+          (signal) => `
+            <article class="source-signal">
+              <span>${escapeHtml(signal.title)}</span>
+              <strong>${escapeHtml(signal.value || "Mapped")}</strong>
+              <small>${escapeHtml(signal.detail || "")}</small>
+            </article>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function renderGithubHighlights(sourceSeed, repos) {
+  if (!githubRepoHighlights) return;
+  const repoNames = repos.slice(0, 4).map((repo) => repo.name);
+  githubRepoHighlights.hidden = false;
+  githubRepoHighlights.innerHTML = repoNames
+    .map((name) => `<span>${escapeHtml(name)}</span>`)
+    .concat([`<span>${Math.round(sourceSeed.confidence * 100)}% match</span>`])
+    .join("");
+}
+
+function setSourceStatus(element, message, isError = false) {
+  if (!element) return;
+  element.textContent = message;
+  element.classList.toggle("is-error", isError);
 }
 
 function handleIntakeSubmit(event) {
@@ -1805,6 +2250,215 @@ function toArchetypeName(value) {
 function formatList(items, fallback) {
   const values = normalizeArray(items);
   return values.length ? values.join(", ") : fallback;
+}
+
+function parseSourceJson(rawText) {
+  try {
+    return JSON.parse(rawText);
+  } catch (error) {
+    const start = rawText.indexOf("{");
+    const end = rawText.lastIndexOf("}");
+    if (start === -1 || end === -1 || end <= start) return null;
+    try {
+      return JSON.parse(rawText.slice(start, end + 1));
+    } catch (nestedError) {
+      return null;
+    }
+  }
+}
+
+function firstString(object, paths) {
+  for (const path of paths) {
+    const value = valueAtPath(object, path);
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function firstList(object, paths) {
+  for (const path of paths) {
+    const value = valueAtPath(object, path);
+    const list = normalizeUnknownList(value);
+    if (list.length) return list;
+  }
+  return [];
+}
+
+function valueAtPath(object, path) {
+  return path.split(".").reduce((value, key) => (value && typeof value === "object" ? value[key] : undefined), object);
+}
+
+function normalizeUnknownList(value) {
+  if (Array.isArray(value)) {
+    return value
+      .flatMap((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") return item.name || item.title || item.value || JSON.stringify(item);
+        return "";
+      })
+      .map((item) => String(item).trim())
+      .filter(Boolean);
+  }
+  if (typeof value === "string") return parseListLike(value);
+  if (value && typeof value === "object") return Object.values(value).flatMap((item) => normalizeUnknownList(item));
+  return [];
+}
+
+function sentenceFromList(items) {
+  const list = normalizeUnknownList(items);
+  if (!list.length) return "";
+  return list.length === 1 ? list[0] : list.slice(0, 3).join(", ");
+}
+
+function listText(items) {
+  return uniqueTextItems(normalizeUnknownList(items)).join("\n");
+}
+
+function firstLabeledText(text, labels) {
+  const lines = String(text || "").split(/\r?\n/);
+  for (const label of labels) {
+    const index = lines.findIndex((line) => line.toLowerCase().includes(`${label}:`));
+    if (index === -1) continue;
+    const sameLine = lines[index].split(":").slice(1).join(":").trim();
+    const following = lines
+      .slice(index + 1, index + 5)
+      .filter((line) => line.trim() && !/^[a-z][a-z\s]+:/i.test(line.trim()))
+      .join("\n");
+    return [sameLine, following].filter(Boolean).join("\n").trim();
+  }
+  return "";
+}
+
+function compactObject(object) {
+  return Object.fromEntries(Object.entries(object).filter(([, value]) => String(value || "").trim()));
+}
+
+function sanitizeOptionList(items, allowedOptions) {
+  const normalizedAllowed = new Map(allowedOptions.map((option) => [option.toLowerCase(), option]));
+  return uniqueTextItems(normalizeUnknownList(items))
+    .map((item) => normalizedAllowed.get(item.toLowerCase()) || allowedOptions.find((option) => item.toLowerCase().includes(option.toLowerCase())))
+    .filter(Boolean);
+}
+
+function normalizeLifeStage(value) {
+  const text = String(value || "").toLowerCase();
+  if (!text) return "";
+  return (
+    lifeStageOptions.find((option) => option.toLowerCase() === text) ||
+    lifeStageOptions.find((option) => text.includes(option.toLowerCase())) ||
+    (text.includes("founder") || text.includes("startup") ? "Founder" : "") ||
+    (text.includes("student") || text.includes("school") ? "Student" : "") ||
+    (text.includes("career") || text.includes("transition") ? "Career transition" : "") ||
+    (text.includes("recover") || text.includes("reset") ? "Recovery and reset" : "") ||
+    (text.includes("explore") || text.includes("travel") ? "Explorer" : "")
+  );
+}
+
+function sourceSeedText(sourceName, body) {
+  return `source: ${sourceName}\n${String(body || "").trim()}`;
+}
+
+function buildSourceSignals(sourceName, fields, priorities, buildGoals, travelNeeds) {
+  return [
+    {
+      title: "Source",
+      value: sourceName,
+      detail: `${Object.keys(fields || {}).length} fields`,
+    },
+    {
+      title: "Build",
+      value: buildGoals.length ? buildGoals.join(", ") : "Inferred",
+      detail: priorities.length ? priorities.join(", ") : "No priority override",
+    },
+    {
+      title: "World",
+      value: fields.worldIndustry || fields.worldLocation || "Open-world",
+      detail: fields.worldCulture || "Terrain from seed",
+    },
+    {
+      title: "Inventory",
+      value: fieldItemCount(fields.inventoryText),
+      detail: fields.partyText ? "Party also mapped" : "Loadout only",
+    },
+    {
+      title: "Travel",
+      value: travelNeeds.length ? travelNeeds.join(", ") : "Optional",
+      detail: fields.travelDestination || "No destination",
+    },
+  ];
+}
+
+function fieldItemCount(value) {
+  const count = parseListLike(value || "").length;
+  if (!count) return "No items";
+  return `${count} item${count === 1 ? "" : "s"}`;
+}
+
+function sanitizeGithubUsername(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^@/, "")
+    .replace(/[^a-zA-Z0-9-]/g, "")
+    .slice(0, 39);
+}
+
+function topCounts(items, limit) {
+  const counts = new Map();
+  items.forEach((item) => {
+    const key = String(item || "").trim();
+    if (!key) return;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, limit);
+}
+
+function daysBetween(now, dateValue) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return Number.POSITIVE_INFINITY;
+  return Math.floor((new Date(now).getTime() - date.getTime()) / 86400000);
+}
+
+function inferGithubIndustry(signals, repoText) {
+  const text = `${signals.join(" ")} ${repoText}`.toLowerCase();
+  if (text.includes("ai") || text.includes("llm") || text.includes("agent")) return "AI tools and agentic software";
+  if (text.includes("travel") || text.includes("map") || text.includes("geo")) return "Travel, maps, and local discovery";
+  if (text.includes("data") || text.includes("analytics")) return "Data products and analytics";
+  if (text.includes("game") || text.includes("rpg")) return "Games and interactive systems";
+  if (text.includes("design") || text.includes("frontend") || text.includes("ui")) return "Frontend product design";
+  return signals.slice(0, 3).join(", ") || "Software and open-source projects";
+}
+
+function githubSeedSummary(user, repos, languages, topics, recentRepos, totalStars) {
+  const languageText = languages.map(([language, count]) => `${language} (${count})`).join(", ") || "unspecified";
+  const topicText = topics.map(([topic]) => topic).join(", ") || "no public topics";
+  const repoLines = repos
+    .slice(0, 12)
+    .map((repo) => `- ${repo.name}: ${repo.description || "No description"} [${repo.language || "unknown"}]`)
+    .join("\n");
+
+  return [
+    `user: ${user?.login || "unknown"}`,
+    user?.bio ? `bio: ${user.bio}` : "",
+    user?.location ? `location: ${user.location}` : "",
+    `public repos analyzed: ${repos.length}`,
+    `recent repos: ${recentRepos.length}`,
+    `public stars: ${totalStars}`,
+    `top languages: ${languageText}`,
+    `topics: ${topicText}`,
+    "repos:",
+    repoLines,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function mergeTextBlock(existing, next) {
+  const existingText = String(existing || "").trim();
+  const nextText = String(next || "").trim();
+  if (!nextText) return existingText;
+  if (!existingText) return nextText;
+  if (existingText.toLowerCase().includes(nextText.toLowerCase())) return existingText;
+  return `${existingText}\n${nextText}`;
 }
 
 async function deriveSoulKey(passphrase, salt) {

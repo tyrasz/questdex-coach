@@ -1,6 +1,6 @@
 # QuestDex Coach
 
-A static web MVP for a "personal Pokedex" style digital coach. It starts with a survey, optionally accepts user-owned seed data, and generates a LifeDex profile with stats, blockers, quests, seed insights, and a local coach console.
+A static web MVP for a "personal Pokedex" style digital coach. It starts with a survey, can import user-approved source data, and generates a Human RPG profile with stats, world context, inventory, quests, side quests, evolution signals, and a local coach console.
 
 ## Run
 
@@ -29,6 +29,8 @@ The tests use Node's built-in test runner and a small mocked browser environment
 ## Current MVP
 
 - Survey for life stage, desired evolution, priorities, blockers, coaching style, and baseline stats
+- Data Sources panel for ChatGPT profile JSON, public GitHub repo scans, and manual seed data
+- Public GitHub import that maps repos, languages, topics, stars, forks, and recent activity into proof-of-work signals
 - Optional seed data through paste or file upload (`.txt`, `.md`, `.json`, `.csv`)
 - Travel side-quest setup for destination, trip mode, needs, wants, whimsy level, and daily event clues
 - Generated profile with primary type, secondary type, priorities, blockers, and stat bars
@@ -42,6 +44,7 @@ The tests use Node's built-in test runner and a small mocked browser environment
 ## Next Build Ideas
 
 - Add real authentication and a database for long-term memory
+- Add a secure GitHub OAuth callback for private repo metadata without storing browser tokens
 - Summarize uploaded seed data server-side before storing it
 - Connect the coach console to an LLM
 - Add daily check-ins and notification scheduling

@@ -184,6 +184,105 @@ test("buildProfile exposes the RPG human model", () => {
   assert.match(profile.evolutionPath[1].condition, /interview two travelers/);
 });
 
+test("ChatGPT source seed maps JSON into RPG profile fields", () => {
+  const app = loadAppContext();
+  const seed = app.buildChatGptSourceSeed(
+    JSON.stringify({
+      displayName: "Nadia",
+      lifeStage: "Founder",
+      desiredEvolution: "Become a calm AI product founder who ships useful travel tools.",
+      buildGoals: ["Freedom", "Mastery", "Service", "Adventure"],
+      priorities: ["Startup", "Creativity", "Health"],
+      blockers: ["Overplanning", "Energy dips"],
+      worldContext: {
+        location: "Singapore to Seoul travel lane",
+        industry: "AI travel planning",
+        culture: "Fast prototypes and public demos",
+        constraints: ["Weekend deadline"],
+        opportunities: ["ChatGPT memory", "GitHub proof"],
+      },
+      party: ["mentor", "traveler interviewees"],
+      inventory: ["prototype", "repo", "prompt library"],
+      evolutionConditions: ["talk to two users", "ship the demo"],
+      travel: {
+        destination: "Seoul",
+        needs: ["Food", "Quiet"],
+        wants: ["jazz bars", "bookstores"],
+        events: ["rain after 5pm"],
+      },
+    }),
+  );
+
+  assert.equal(seed.source, "chatgpt");
+  assert.equal(seed.fields.displayName, "Nadia");
+  assert.equal(seed.fields.lifeStage, "Founder");
+  assert.equal(seed.fields.worldIndustry, "AI travel planning");
+  assert.match(seed.fields.inventoryText, /prompt library/);
+  assert.ok(seed.priorities.includes("Startup"));
+  assert.ok(seed.buildGoals.includes("Adventure"));
+  assert.ok(seed.travelNeeds.includes("Quiet"));
+  assert.ok(seed.signals.some((signal) => signal.title === "Inventory"));
+});
+
+test("GitHub source seed turns repos into proof-of-work signals", () => {
+  const app = loadAppContext();
+  const seed = app.buildGithubSourceSeed(
+    {
+      login: "nadia",
+      name: "Nadia",
+      location: "Singapore",
+      bio: "Building AI travel tools and local discovery systems.",
+    },
+    [
+      {
+        name: "questdex-coach",
+        description: "AI travel RPG coach",
+        language: "JavaScript",
+        topics: ["ai", "travel", "coach"],
+        stargazers_count: 8,
+        forks_count: 2,
+        fork: false,
+        archived: false,
+        pushed_at: "2026-05-01T00:00:00.000Z",
+      },
+      {
+        name: "map-notes",
+        description: "Local discovery notebook",
+        language: "TypeScript",
+        topics: ["maps", "travel"],
+        stargazers_count: 3,
+        forks_count: 1,
+        fork: false,
+        archived: false,
+        pushed_at: "2026-04-20T00:00:00.000Z",
+      },
+      {
+        name: "old-fork",
+        description: "Forked dependency",
+        language: "Ruby",
+        topics: [],
+        stargazers_count: 0,
+        forks_count: 0,
+        fork: true,
+        archived: false,
+        pushed_at: "2025-01-01T00:00:00.000Z",
+      },
+    ],
+    new Date("2026-05-09T00:00:00.000Z"),
+  );
+
+  assert.equal(seed.source, "github");
+  assert.equal(seed.fields.displayName, "Nadia");
+  assert.equal(seed.fields.worldLocation, "Singapore");
+  assert.equal(seed.fields.worldIndustry, "AI tools and agentic software");
+  assert.match(seed.fields.worldOpportunities, /3 public repos/);
+  assert.match(seed.fields.inventoryText, /JavaScript projects/);
+  assert.match(seed.seedText, /questdex-coach/);
+  assert.ok(seed.priorities.includes("Startup"));
+  assert.ok(seed.buildGoals.includes("Adventure"));
+  assert.ok(seed.signals.some((signal) => signal.title === "Top languages"));
+});
+
 test("buildQuests includes stabilizing quests for known blockers", () => {
   const app = loadAppContext();
   const profile = app.buildProfile(

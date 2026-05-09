@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QuestDex Coach</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=data-sources" />
   </head>
   <body>
     <div class="app-shell">
@@ -24,7 +24,7 @@
           </a>
           <a class="step-nav__item" href="#seed">
             <span class="step-dot">2</span>
-            <span>Data seed</span>
+            <span>Sources</span>
           </a>
           <a class="step-nav__item" href="#sidequests">
             <span class="step-dot">3</span>
@@ -241,25 +241,120 @@
               </div>
             </fieldset>
 
-            <section id="seed" class="panel wide-panel seed-panel" aria-labelledby="seedTitle">
+            <section id="seed" class="panel wide-panel seed-panel data-source-panel" aria-labelledby="seedTitle">
               <div class="panel-heading">
                 <div>
                   <p class="eyebrow">Optional</p>
-                  <h3 id="seedTitle">Seed the coach with your own data</h3>
+                  <h3 id="seedTitle">Data sources</h3>
                 </div>
-                <span class="privacy-pill">Local only in this MVP</span>
+                <span class="privacy-pill">User-approved</span>
               </div>
 
-              <div class="seed-grid">
-                <label class="file-drop">
-                  <input id="seedFile" type="file" accept=".txt,.md,.json,.csv" />
-                  <span class="file-icon" aria-hidden="true"></span>
-                  <span>
-                    <strong>Upload notes, journal exports, tasks, or goals</strong>
-                    <small>.txt, .md, .json, or .csv</small>
-                  </span>
-                </label>
+              <div class="source-lanes">
+                <div class="source-lane">
+                  <div class="source-lane-heading">
+                    <div>
+                      <p class="eyebrow">ChatGPT</p>
+                      <h4>Memory seed</h4>
+                    </div>
+                    <span class="source-badge">JSON</span>
+                  </div>
+                  <label>
+                    ChatGPT profile JSON
+                    <textarea
+                      id="chatgptSeedInput"
+                      rows="8"
+                      placeholder='{"displayName":"Mira","buildGoals":["Freedom","Mastery"],"inventory":["GitHub repos","AI prototypes"]}'
+                    ></textarea>
+                  </label>
+                  <div class="source-actions">
+                    <button class="secondary-button compact-button" type="button" id="copyChatGptPrompt">
+                      Copy prompt
+                    </button>
+                    <button class="secondary-button compact-button" type="button" id="loadChatGptExample">
+                      Load example
+                    </button>
+                    <button class="primary-button compact-button" type="button" id="applyChatGptSeed">
+                      Apply seed
+                    </button>
+                  </div>
+                  <p id="chatgptSeedStatus" class="source-status"></p>
+                </div>
 
+                <div class="source-lane">
+                  <div class="source-lane-heading">
+                    <div>
+                      <p class="eyebrow">GitHub</p>
+                      <h4>Repo signal scan</h4>
+                    </div>
+                    <span class="source-badge">Public</span>
+                  </div>
+                  <label>
+                    GitHub username
+                    <input id="githubUsername" type="text" placeholder="tyrasz" autocomplete="off" />
+                  </label>
+                  <div class="source-actions">
+                    <button class="primary-button compact-button" type="button" id="analyzeGithub">
+                      Analyze repos
+                    </button>
+                  </div>
+                  <div id="githubRepoHighlights" class="github-highlights" hidden></div>
+                  <p id="githubImportStatus" class="source-status"></p>
+                </div>
+
+                <div class="source-lane oauth-lane">
+                  <div class="source-lane-heading">
+                    <div>
+                      <p class="eyebrow">GitHub</p>
+                      <h4>Private repo unlock</h4>
+                    </div>
+                    <span class="source-badge">OAuth</span>
+                  </div>
+                  <div class="oauth-preview">
+                    <dl>
+                      <div>
+                        <dt>Scope</dt>
+                        <dd>Repo metadata, languages, topics, README signals</dd>
+                      </div>
+                      <div>
+                        <dt>Storage</dt>
+                        <dd>No browser token storage</dd>
+                      </div>
+                    </dl>
+                  </div>
+                  <button class="secondary-button compact-button" type="button" id="githubOAuthButton">
+                    Check unlock path
+                  </button>
+                  <p id="githubOAuthStatus" class="source-status"></p>
+                </div>
+              </div>
+
+              <div id="sourceSignalBoard" class="source-signal-board" hidden></div>
+
+              <details class="manual-seed-box">
+                <summary>Manual seed</summary>
+                <div class="seed-grid">
+                  <label class="file-drop">
+                    <input id="seedFile" type="file" accept=".txt,.md,.json,.csv" />
+                    <span class="file-icon" aria-hidden="true"></span>
+                    <span>
+                      <strong>Upload notes, journal exports, tasks, or goals</strong>
+                      <small>.txt, .md, .json, or .csv</small>
+                    </span>
+                  </label>
+
+                  <label>
+                    Paste a small dataset
+                    <textarea
+                      name="seedText"
+                      rows="8"
+                      placeholder='{"goals":["ship MVP","talk to 5 users"],"habits":["morning walk"],"blockers":["avoid sales calls"]}'
+                    ></textarea>
+                  </label>
+                </div>
+              </details>
+
+              <noscript>
                 <label>
                   Paste a small dataset
                   <textarea
@@ -268,7 +363,7 @@
                     placeholder='{"goals":["ship MVP","talk to 5 users"],"habits":["morning walk"],"blockers":["avoid sales calls"]}'
                   ></textarea>
                 </label>
-              </div>
+              </noscript>
 
               <div class="seed-preview" id="seedPreview" hidden></div>
             </section>
@@ -546,6 +641,6 @@
       </main>
     </div>
 
-    <script src="./app.js"></script>
+    <script src="./app.js?v=data-sources"></script>
   </body>
 </html>
