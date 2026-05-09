@@ -6,6 +6,20 @@ A static web MVP for a "personal Pokedex" style digital coach. It starts with a 
 
 Open `index.html` in a browser. No install step is required.
 
+For a local server:
+
+```sh
+npm start
+```
+
+## Test
+
+```sh
+npm test
+```
+
+The tests use Node's built-in test runner and a small mocked browser environment, so there are no package dependencies to install.
+
 ## Current MVP
 
 - Survey for life stage, desired evolution, priorities, blockers, coaching style, and baseline stats
