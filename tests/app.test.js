@@ -184,6 +184,49 @@ test("buildProfile exposes the RPG human model", () => {
   assert.match(profile.evolutionPath[1].condition, /interview two travelers/);
 });
 
+
+test("readiness audit identifies missing context and next setup action", () => {
+  const app = loadAppContext();
+  const profile = app.buildProfile(
+    baseSurvey({
+      desiredEvolution: "Get better.",
+      blockers: "",
+      worldLocation: "",
+      worldIndustry: "",
+      worldCulture: "",
+      worldConstraints: "",
+      worldOpportunities: "",
+      partyText: "",
+      inventoryText: "",
+      travelDestination: "",
+      travelNeedsText: "",
+      travelWantsText: "",
+      travelEventsSeed: "",
+      energy: "35",
+    }),
+    "",
+  );
+
+  assert.equal(profile.readinessAudit.stage, "Survey-only sketch");
+  assert.ok(profile.readinessAudit.score < 62);
+  assert.equal(profile.readinessAudit.gaps[0].label, "Clarify evolution target");
+  assert.ok(profile.readinessAudit.gaps.some((gap) => gap.label === "Add proof or memory"));
+  assert.ok(profile.readinessAudit.gaps.some((gap) => gap.label === "Stabilize energy"));
+});
+
+test("readiness audit rewards rich profile signal", () => {
+  const app = loadAppContext();
+  const profile = app.buildProfile(
+    baseSurvey(),
+    "demo deadline, GitHub proof, user interviews, mentor feedback, travel recovery notes, vegetarian cafe map, local events, habit log",
+  );
+
+  assert.ok(profile.readinessAudit.score >= 62);
+  assert.equal(profile.readinessAudit.stage, "Useful but needs calibration");
+  assert.ok(profile.readinessAudit.strengths.some((strength) => strength.label === "World map started"));
+  assert.ok(profile.readinessAudit.strengths.some((strength) => strength.label === "Inventory visible"));
+});
+
 test("ChatGPT source seed maps JSON into RPG profile fields", () => {
   const app = loadAppContext();
   const seed = app.buildChatGptSourceSeed(
@@ -616,6 +659,15 @@ test("Soul Capsule panel exposes local JSON download and upload controls", () =>
   assert.match(html, /id="exportSoul"[^>]*>Download JSON</);
   assert.match(html, /Upload JSON/);
   assert.match(html, /id="importSoulFile"[\s\S]*accept="\.json,application\/json"/);
+});
+
+test("dashboard exposes a profile readiness calibration panel", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+
+  assert.match(html, /id="readinessTitle">Profile readiness</);
+  assert.match(html, /id="readinessScore"/);
+  assert.match(html, /id="readinessGaps"/);
+  assert.match(html, /id="readinessStrengths"/);
 });
 
 test("legacy Soul Capsules are upgraded with stable RPG fields", () => {

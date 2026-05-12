@@ -34,8 +34,9 @@ The tests use Node's built-in test runner and a small mocked browser environment
 - Privacy-first Session Capture flow for bounded, user-approved browsing/research signals with sensitive-page blocking, staged profile updates, and JSON/Markdown export
 - Optional seed data through paste or file upload (`.txt`, `.md`, `.json`, `.csv`)
 - Optional side-quest setup for travel, project, career, learning, wellness, social, or creative modes, with mode-specific prompts
-- Generated profile with primary type, secondary type, priorities, blockers, and stat bars
+- Generated profile with primary type, secondary type, priorities, blockers, stat bars, and a readiness audit that highlights missing context
 - Quest board with reroll support
+- Profile readiness panel that scores signal quality and suggests the next best setup question
 - Side-quest board with travel needs, wants, daily clues, and serendipity prompts
 - Daily nudge TODO list with local browser notification opt-in plus ChatGPT Task, Notion diary, and Telegram payload exports
 - Coach console with local, rule-based responses

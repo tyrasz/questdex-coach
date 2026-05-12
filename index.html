@@ -608,6 +608,31 @@
               <div id="buildList" class="build-list"></div>
             </section>
 
+            <section class="panel readiness-panel" aria-labelledby="readinessTitle">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Calibration</p>
+                  <h3 id="readinessTitle">Profile readiness</h3>
+                </div>
+                <span id="readinessScore" class="readiness-score">0/100</span>
+              </div>
+              <div class="readiness-meter" aria-hidden="true">
+                <div id="readinessMeterFill" class="readiness-meter__fill"></div>
+              </div>
+              <p id="readinessStage" class="readiness-stage">Needs more signal</p>
+              <p id="readinessQuestion" class="readiness-question"></p>
+              <div class="readiness-columns">
+                <div>
+                  <h4>Gaps to fill</h4>
+                  <ul id="readinessGaps" class="readiness-list"></ul>
+                </div>
+                <div>
+                  <h4>Useful signals</h4>
+                  <ul id="readinessStrengths" class="readiness-list"></ul>
+                </div>
+              </div>
+            </section>
+
             <section class="panel quests-panel" aria-labelledby="questsTitle">
               <div class="panel-heading">
                 <div>
