@@ -2255,7 +2255,7 @@ function buildProfile(data, seed) {
   const evolutionPath = buildEvolutionPath(data, archetypes, worldContext, blockers, skillTree);
   const travelContext = buildTravelContext(data);
 
-  return {
+  const profile = {
     displayName: data.displayName?.trim() || "New trainer",
     lifeStage: data.lifeStage,
     desiredEvolution: data.desiredEvolution.trim(),
@@ -2277,6 +2277,89 @@ function buildProfile(data, seed) {
     travelContext,
     seedWordCount: countWords(seed),
     createdAt: new Date().toISOString(),
+  };
+
+  profile.readinessAudit = buildReadinessAudit(profile);
+  return profile;
+}
+
+function buildReadinessAudit(profile = {}) {
+  const gaps = [];
+  const strengths = [];
+  const addGap = (label, action, weight = 8) => gaps.push({ label, action, weight });
+  const addStrength = (label, detail, weight = 4) => strengths.push({ label, detail, weight });
+  const stats = profile.humanStats || profile.stats || {};
+  const world = profile.worldContext || {};
+  const travel = profile.travelContext || {};
+
+  if (profile.desiredEvolution && profile.desiredEvolution.length >= 60) {
+    addStrength("Clear evolution target", "Desired evolution has enough detail to steer quests.", 5);
+  } else {
+    addGap("Clarify evolution target", "Write one sentence naming the capability, arena, and proof that would show you evolved.", 12);
+  }
+
+  if (Number(profile.seedWordCount || 0) >= 40) {
+    addStrength("Seed memory added", `${profile.seedWordCount} words are available for more specific coaching.`, 5);
+  } else {
+    addGap("Add proof or memory", "Paste recent notes, tasks, wins, or constraints so the coach is less generic.", 10);
+  }
+
+  if (world.location && world.location !== "Unmapped arena" && world.industry && world.industry !== "Open-world / cross-domain") {
+    addStrength("World map started", `${world.location} / ${world.industry}`.slice(0, 110), 5);
+  } else {
+    addGap("Map the arena", "Add location, industry, culture, constraints, and opportunities for the game you are actually playing.", 9);
+  }
+
+  if ((profile.party || []).length >= 3) {
+    addStrength("Party exists", `${profile.party.length} allies or social nodes mapped.`, 4);
+  } else {
+    addGap("Name the party", "List mentors, peers, users, collaborators, rivals, or communities that can change the quest outcome.", 8);
+  }
+
+  if ((profile.inventory || []).length >= 4) {
+    addStrength("Inventory visible", `${profile.inventory.length} usable assets mapped.`, 4);
+  } else {
+    addGap("List the loadout", "Add skills, tools, credentials, savings, artifacts, or relationships you can use this week.", 7);
+  }
+
+  if ((profile.blockers || []).some((blocker) => !/clearer next actions/i.test(blocker))) {
+    addStrength("Debuffs named", "Known blockers can be converted into stabilizing quests.", 4);
+  } else {
+    addGap("Name the debuff", "Write the real friction: energy, avoidance, money, ambiguity, time, confidence, or environment.", 8);
+  }
+
+  if (Number(stats.Energy || stats.Constitution || 50) < 45) {
+    addGap("Stabilize energy", "Protect one recovery block before adding more quests.", 9);
+  } else {
+    addStrength("Energy floor usable", "Current energy can support a small action today.", 3);
+  }
+
+  if (Number(stats.Resources || 50) < 45) {
+    addGap("Buffer resources", "Create one tiny budget, time, or tool buffer before increasing scope.", 7);
+  }
+
+  if (travel.active) {
+    addStrength(`${travel.sideQuestMode || "Side quest"} radar on`, formatTravelLens(travel), 3);
+  }
+
+  const penalty = gaps.reduce((sum, gap) => sum + gap.weight, 0);
+  const boost = strengths.reduce((sum, strength) => sum + strength.weight, 0);
+  const score = clamp(74 + boost - penalty, 18, 96);
+  const stage = score >= 82 ? "Ready to execute" : score >= 62 ? "Useful but needs calibration" : score >= 42 ? "Needs more signal" : "Survey-only sketch";
+  const nextQuestion = gaps[0]?.action || "Pick the top quest, finish it, then record what changed.";
+
+  return {
+    score,
+    stage,
+    nextQuestion,
+    gaps: [...gaps]
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 4)
+      .map(({ label, action }) => ({ label, action })),
+    strengths: [...strengths]
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 4)
+      .map(({ label, detail }) => ({ label, detail })),
   };
 }
 
@@ -3432,6 +3515,7 @@ function renderDashboard() {
   renderStats(profile.humanStats || profile.stats);
   renderWorld(profile.worldContext);
   renderBuild(profile);
+  renderReadinessAudit(profile.readinessAudit || buildReadinessAudit(profile));
   renderQuests(state.quests);
   const sideQuestPanel = document.querySelector(".sidequest-panel");
   if (sideQuestPanel) sideQuestPanel.hidden = !profile.travelContext?.active;
@@ -3502,6 +3586,24 @@ function renderWorld(worldContext = {}) {
       `,
     )
     .join("");
+}
+
+function renderReadinessAudit(audit = {}) {
+  const score = Number(audit.score || 0);
+  const gaps = audit.gaps || [];
+  const strengths = audit.strengths || [];
+  const meter = document.querySelector("#readinessMeterFill");
+  if (meter) meter.style.width = `${clamp(score, 0, 100)}%`;
+  setText(document.querySelector("#readinessScore"), `${score}/100`);
+  setText(document.querySelector("#readinessStage"), audit.stage || "Needs more signal");
+  setText(document.querySelector("#readinessQuestion"), audit.nextQuestion || "Add one concrete proof point or constraint.");
+
+  document.querySelector("#readinessGaps").innerHTML = gaps.length
+    ? gaps.map((gap) => `<li><strong>${escapeHtml(gap.label)}</strong><span>${escapeHtml(gap.action)}</span></li>`).join("")
+    : `<li><strong>No critical gaps</strong><span>Execute one quest and record the result.</span></li>`;
+  document.querySelector("#readinessStrengths").innerHTML = strengths.length
+    ? strengths.map((strength) => `<li><strong>${escapeHtml(strength.label)}</strong><span>${escapeHtml(strength.detail)}</span></li>`).join("")
+    : `<li><strong>Fresh profile</strong><span>Strengths will appear as you add proof, party, inventory, and world context.</span></li>`;
 }
 
 function renderBuild(profile) {
@@ -3867,6 +3969,7 @@ function ensureRpgProfileFields(profile) {
   }
   profile.evolutionPath = normalizeEvolutionPath(profile.evolutionPath, profile);
   profile.seedWordCount = Number(profile.seedWordCount || 0);
+  profile.readinessAudit = profile.readinessAudit || buildReadinessAudit(profile);
   profile.displayName = profile.displayName || "New trainer";
   profile.lifeStage = profile.lifeStage || "Explorer";
   profile.desiredEvolution = profile.desiredEvolution || "Become more capable in the current world.";

@@ -1213,6 +1213,95 @@ textarea::placeholder {
   background: var(--stat-color, var(--blue));
 }
 
+
+.readiness-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.readiness-score {
+  display: inline-grid;
+  min-width: 68px;
+  min-height: 32px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-strong);
+  color: var(--blue);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.readiness-meter {
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid #d5ddea;
+  border-radius: 999px;
+  background: #e8edf5;
+}
+
+.readiness-meter__fill {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--coral), var(--gold), var(--teal));
+  transition: width 220ms ease;
+}
+
+.readiness-stage {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.readiness-question {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.readiness-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.readiness-columns h4 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 0.86rem;
+}
+
+.readiness-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.readiness-list li {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(203, 211, 223, 0.86);
+  border-radius: 8px;
+  background: #fbfcff;
+}
+
+.readiness-list strong {
+  color: var(--ink);
+  font-size: 0.84rem;
+}
+
+.readiness-list span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
 .quest-list {
   display: grid;
   gap: 12px;
@@ -1597,7 +1686,8 @@ textarea::placeholder {
   .rpg-grid,
   .rpg-grid.two-column,
   .travel-grid,
-  .travel-details {
+  .travel-details,
+  .readiness-columns {
     grid-template-columns: 1fr;
   }
 
